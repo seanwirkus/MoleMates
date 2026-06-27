@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>MoleMates — Interactive App Prototype</title>
+<meta name="description" content="MoleMates interactive iOS app prototype — a tap-to-build molecule builder, smart flashcards, and concept lessons. Built as a clickable spec for the SwiftUI port.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<!--
+  ============================================================================
+  MoleMates — Interactive App Prototype (single-file, no dependencies)
+  ----------------------------------------------------------------------------
+  This is a clickable spec for the eventual native SwiftUI app. The structure
+  is intentionally 1:1 with a SwiftUI port:
+
+    JS here                         SwiftUI equivalent
+    ---------------------------     ---------------------------------
+    Screen <section data-screen>    A `View` (HomeView, BuildView, ...)
+    Tab bar + router (showScreen)   `TabView { ... }` with a selection binding
+    APP state object                `@Observable final class AppModel`
+    ELEMENTS / DECK / CONCEPTS data `struct Element/Card/Concept` model arrays
+    builder add/clear/identify      `BuilderViewModel` methods
+    flashcard flip/grade            `StudyViewModel` methods
+
+  Everything is plain HTML/CSS/JS so it runs anywhere and embeds in an iframe.
+  ============================================================================
+-->
+<style>
+:root{
+    --ink:#1f294a; --ink-soft:#5b6488; --ink-faint:#8b93b4;
+    --line:rgba(120,132,180,.14);
+    --bg:#f5f7fd; --bg-2:#eef1fb; --card:#ffffff;
+    --coral:#ff8d79; --coral-d:#f4664f;
+    --blue:#62a8ff;  --blue-d:#3a86f0;
+    --purple:#a98cf6; --purple-d:#8a67ef;
+    --teal:#6ed4c2;  --teal-d:#3eb8a4;
+    --green:#8ed79a; --green-d:#5cc06d;
+    --amber:#ffcf6b; --amber-d:#f0a32e;
+    --grad-hero:linear-gradient(135deg,#ff8d79,#a98cf6 55%,#62a8ff);
+    --grad-purple:linear-gradient(150deg,#bda4fb,#8a67ef);
+    --grad-coral:linear-gradient(150deg,#ffa48f,#f4664f);
+    --grad-teal:linear-gradient(150deg,#9ae7d8,#3eb8a4);
+    --grad-blue:linear-gradient(150deg,#8bc0ff,#3a85ef);
+    --grad-green:linear-gradient(150deg,#a3e3ad,#5cc06d);
+    --shadow-card:0 14px 30px -16px rgba(40,52,96,.35);
+    --shadow-pop:0 22px 50px -22px rgba(40,52,96,.5);
+    font-synthesis:none;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+    font-family:'Inter',system-ui,sans-serif;color:var(--ink);
+    background:
+        radial-gradient(120% 90% at 10% -10%, #fdeef0 0%, rgba(253,238,240,0) 44%),
+        radial-gradient(120% 80% at 92% 0%, #e9eafc 0%, rgba(233,234,252,0) 48%),
+        radial-gradient(120% 100% at 88% 108%, #def6ef 0%, rgba(222,246,239,0) 48%),
+        linear-gradient(180deg,#f7f8fe 0%,#eef1fb 100%);
+    -webkit-font-smoothing:antialiased;
+    display:grid;place-items:center;
+    padding:clamp(8px,2.4vw,28px);
+    overflow:hidden;
+}
+/* embedded (iframe) mode: drop the page backdrop so the phone floats on
+   whatever surface hosts it. Toggled by ?embed=transparent. */
+body.embed{background:transparent;padding:clamp(4px,1.6vw,16px)}
+
+/* ===================== iPHONE FRAME ===================== */
+.device{
+    position:relative;
+    /* sized by whichever limit binds first: viewport height, viewport
+       width (≈90vw via the height proxy), or a hard cap — so the phone
+       never clips vertically or overflows horizontally in any embed. */
+    height:min(94vh, 184vw, 860px);
+    aspect-ratio:421/860;
+    border-radius:58px;
+    padding:13px;
+    background:linear-gradient(155deg,#3a3d48,#16171c 55%,#080a0d);
+    box-shadow:
+        var(--shadow-pop),
+        0 60px 90px -50px rgba(20,26,52,.75),
+        inset 0 0 0 2px rgba(255,255,255,.06),
+        inset 0 0 0 5px #25272f;
+}
+.device::before{ /* side buttons */
+    content:"";position:absolute;left:-3px;top:160px;width:3px;height:34px;border-radius:3px;
+    background:#1a1c22;
+    box-shadow:0 56px 0 #1a1c22, 0 110px 0 #1a1c22, 3px 240px 0 0 #1a1c22;
+}
+.device::after{ /* right button (power) */
+    content:"";position:absolute;right:-3px;top:210px;width:3px;height:74px;border-radius:3px;background:#1a1c22;
+}
+.viewport{
+    position:relative;width:100%;height:100%;
+    border-radius:46px;overflow:hidden;
+    background:var(--bg);
+    display:flex;flex-direction:column;
+    isolation:isolate;
+}
+/* dynamic island */
+.island{
+    position:absolute;top:11px;left:50%;transform:translateX(-50%);
+    width:33%;height:30px;background:#06070a;border-radius:18px;z-index:80;
+    display:flex;align-items:center;justify-content:flex-end;padding-right:9px;gap:7px;
+}
+.island i{width:8px;height:8px;border-radius:50%;background:#15171d}
+.island i.cam{background:radial-gradient(circle at 35% 30%,#2b4a6b,#0a1119);box-shadow:inset 0 0 0 1px #04070c}
+/* status bar */
+.statusbar{
+    position:relative;z-index:70;flex:none;
+    display:flex;justify-content:space-between;align-items:center;
+    padding:16px 26px 6px;font-weight:700;font-size:14px;color:var(--ink);
+}
+.statusbar .right{display:flex;align-items:center;gap:6px}
+.statusbar svg{display:block}
+
+/* screen scroll stage */
+.stage{position:relative;flex:1;min-height:0;overflow:hidden}
+.screen{
+    position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
+    padding:6px 18px 96px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+    opacity:0;visibility:hidden;transform:translateY(8px) scale(.992);
+    transition:opacity .32s ease, transform .32s cubic-bezier(.2,.8,.25,1), visibility .32s;
+}
+.screen::-webkit-scrollbar{display:none}
+.screen.active{opacity:1;visibility:visible;transform:none}
+
+/* ===================== SHARED BITS ===================== */
+.app-head{display:flex;align-items:center;gap:10px;padding:8px 0 14px}
+.app-head h1{font-family:'Fredoka';font-weight:600;font-size:23px;letter-spacing:.2px;flex:1}
+.app-head .back{width:34px;height:34px;border-radius:12px;border:none;background:#fff;color:var(--ink);
+    box-shadow:var(--shadow-card);font-size:18px;font-weight:700;display:grid;place-items:center;cursor:pointer}
+.app-head .act{width:34px;height:34px;border-radius:12px;border:none;background:rgba(255,255,255,.7);color:var(--ink-soft);
+    box-shadow:inset 0 0 0 1px var(--line);display:grid;place-items:center;cursor:pointer}
+.eyebrow{font-weight:700;text-transform:uppercase;letter-spacing:.6px;font-size:10.5px;color:var(--ink-faint)}
+.card{background:var(--card);border-radius:20px;padding:16px;box-shadow:var(--shadow-card), inset 0 0 0 1px rgba(120,132,180,.06)}
+.btn{border:none;cursor:pointer;font-family:inherit;font-weight:700;border-radius:14px;color:#fff;
+    padding:13px 16px;font-size:14px;box-shadow:0 12px 22px -12px rgba(40,52,96,.55);transition:transform .12s ease, filter .2s}
+.btn:active{transform:scale(.96)}
+.btn.ghost{background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.grad-text{background:var(--grad-hero);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* glossy atom (shared, scalable via --s) */
+.atom{
+    --s:46px;--c1:#fff;--c2:#dfe4f2;--c3:#aeb6cf;
+    width:var(--s);height:var(--s);border-radius:50%;flex:none;position:relative;
+    background:
+        radial-gradient(circle at 30% 26%, rgba(255,255,255,.95), rgba(255,255,255,0) 42%),
+        radial-gradient(circle at 72% 80%, rgba(0,0,0,.30), transparent 56%),
+        radial-gradient(circle at 50% 46%, var(--c1), var(--c2) 52%, var(--c3));
+    box-shadow:inset -.16em -.2em .42em rgba(0,0,0,.28), inset .12em .14em .3em rgba(255,255,255,.55), 0 .4em .8em rgba(31,42,68,.22);
+    display:grid;place-items:center;color:#fff;font-weight:800;font-size:calc(var(--s)*.34);text-shadow:0 1px 2px rgba(0,0,0,.25);
+}
+.atom.carbon{--c1:#7b818f;--c2:#3b3f49;--c3:#1d1f25}
+.atom.oxygen{--c1:#ffb3a2;--c2:#f47b64;--c3:#cf4a36}
+.atom.hydrogen{--c1:#ffffff;--c2:#eef1f8;--c3:#c2cadf;color:#5b6488;text-shadow:none}
+.atom.nitrogen{--c1:#aed2ff;--c2:#5ea7ff;--c3:#2f6fd6}
+.atom.purple{--c1:#d6c6ff;--c2:#a98cf6;--c3:#7a52e6}
+.atom.teal{--c1:#bdf0e6;--c2:#6ed4c2;--c3:#2fa893}
+
+/* ===================== HOME ===================== */
+.hero-greet{display:flex;align-items:center;gap:12px;padding:6px 0 16px}
+.hero-greet .av{width:46px;height:46px;border-radius:16px;background:var(--grad-purple);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.45), 0 10px 18px -10px rgba(122,82,230,.7);display:grid;place-items:center;color:#fff;font-family:'Fredoka';font-weight:600;font-size:18px}
+.hero-greet .g1{font-size:13px;color:var(--ink-soft);font-weight:600}
+.hero-greet .g2{font-family:'Fredoka';font-weight:600;font-size:19px}
+.streak{margin-left:auto;display:flex;align-items:center;gap:6px;background:linear-gradient(150deg,#fff3df,#ffe6c2);color:var(--amber-d);
+    padding:8px 12px;border-radius:14px;font-weight:800;font-size:14px;box-shadow:inset 0 0 0 1px rgba(240,163,46,.25)}
+
+.progress-card{background:linear-gradient(150deg,#fff,#f3efff);display:flex;align-items:center;gap:16px;margin-bottom:14px}
+.ring{position:relative;width:84px;height:84px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .pct{position:absolute;inset:0;display:grid;place-items:center;font-family:'Fredoka';font-weight:600;font-size:23px}
+.progress-card .meta b{display:block;font-family:'Fredoka';font-weight:600;font-size:17px}
+.progress-card .meta span{font-size:12.5px;color:var(--ink-soft)}
+.progress-card .meta .chip{display:inline-block;margin-top:8px;background:var(--grad-green);color:#fff;font-weight:700;font-size:11px;padding:4px 10px;border-radius:999px}
+
+.section-label{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 10px}
+.section-label b{font-family:'Fredoka';font-weight:600;font-size:15px}
+.section-label a{font-size:12px;color:var(--purple-d);font-weight:700;cursor:pointer}
+
+.learn-row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:#fff;box-shadow:var(--shadow-card), inset 0 0 0 1px rgba(120,132,180,.06);margin-bottom:9px;cursor:pointer;transition:transform .12s ease}
+.learn-row:active{transform:scale(.98)}
+.learn-row .ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;flex:none;color:#fff}
+.learn-row .tx{flex:1;min-width:0}
+.learn-row .tx b{display:block;font-size:14.5px;font-weight:700}
+.learn-row .tx span{font-size:12px;color:var(--ink-faint)}
+.learn-row .tx .bar{height:5px;border-radius:3px;background:#eceaf6;margin-top:7px;overflow:hidden}
+.learn-row .tx .bar i{display:block;height:100%;border-radius:3px;background:var(--grad-purple)}
+.learn-row .go{color:var(--ink-faint);font-size:20px}
+
+.motd{margin-top:6px;background:linear-gradient(150deg,#eaf3ff,#e4ecff);display:flex;align-items:center;gap:14px;overflow:hidden;position:relative}
+.motd .scene{width:84px;height:74px;flex:none;position:relative}
+.motd .tx b{font-family:'Fredoka';font-weight:600;font-size:16px;display:block}
+.motd .tx .f{font-size:12px;color:var(--blue-d);font-weight:700;margin-top:1px}
+.motd .tx p{font-size:11.5px;color:var(--ink-soft);margin-top:5px;line-height:1.4}
+
+/* ===================== BUILD ===================== */
+.build-prompt{display:flex;align-items:center;gap:10px;background:linear-gradient(150deg,#fff,#f1f6ff);margin-bottom:12px}
+.build-prompt .q{width:40px;height:40px;border-radius:13px;background:var(--grad-blue);color:#fff;display:grid;place-items:center;flex:none;font-size:19px}
+.build-prompt b{font-family:'Fredoka';font-weight:600;font-size:16px}
+.build-prompt span{font-size:12px;color:var(--ink-soft);display:block}
+.build-prompt .skip{margin-left:auto;font-size:12px;font-weight:700;color:var(--purple-d);background:none;border:none;cursor:pointer}
+
+.canvas{position:relative;height:230px;border-radius:22px;margin-bottom:12px;overflow:hidden;
+    background:
+        radial-gradient(120% 90% at 20% 0%,#fff,rgba(255,255,255,0) 60%),
+        repeating-linear-gradient(0deg,rgba(120,132,180,.05) 0 1px,transparent 1px 22px),
+        repeating-linear-gradient(90deg,rgba(120,132,180,.05) 0 1px,transparent 1px 22px),
+        linear-gradient(160deg,#f7f9ff,#eef1fb);
+    box-shadow:inset 0 0 0 1px var(--line)}
+.canvas .hint{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--ink-faint);text-align:center;padding:20px;transition:opacity .3s}
+.canvas .hint svg{width:38px;height:38px;opacity:.5}
+.canvas .hint b{font-size:13px;color:var(--ink-soft)}
+.canvas .hint span{font-size:11.5px}
+.canvas.has .hint{opacity:0;pointer-events:none}
+.placed{position:absolute;transform:translate(-50%,-50%);animation:pop .4s cubic-bezier(.2,1.4,.4,1)}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(0)}100%{transform:translate(-50%,-50%) scale(1)}}
+.cbond{position:absolute;height:7px;border-radius:5px;transform-origin:left center;
+    background:linear-gradient(180deg,#fff,#eef0f8 45%,#c7cee0);box-shadow:0 1px 2px rgba(31,42,68,.18), inset 0 1px 1px rgba(255,255,255,.7)}
+
+.formula-bar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.formula{flex:1;background:#fff;border-radius:16px;padding:12px 16px;box-shadow:inset 0 0 0 1px var(--line);min-height:54px;display:flex;flex-direction:column;justify-content:center}
+.formula .lbl{font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--ink-faint);text-transform:uppercase}
+.formula .val{font-family:'Fredoka';font-weight:600;font-size:21px;line-height:1.1}
+.formula .val sub{font-size:13px}
+.formula .name{font-size:12px;font-weight:700;color:var(--teal-d)}
+.formula .name.empty{color:var(--ink-faint);font-weight:600}
+.tool-btn{width:54px;height:54px;border-radius:16px;border:none;background:#fff;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-soft);font-size:20px;cursor:pointer;display:grid;place-items:center}
+.tool-btn:active{transform:scale(.94)}
+
+.palette{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.pel{display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border:none;cursor:pointer;
+    border-radius:16px;padding:11px 6px;box-shadow:var(--shadow-card), inset 0 0 0 1px rgba(120,132,180,.06);transition:transform .12s ease}
+.pel:active{transform:scale(.93)}
+.pel b{font-size:12px;font-weight:700}
+.pel span{font-size:10px;color:var(--ink-faint)}
+
+.win{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;
+    background:linear-gradient(160deg,rgba(142,215,154,.97),rgba(92,192,109,.97));color:#fff;z-index:20;
+    opacity:0;visibility:hidden;transition:opacity .3s, visibility .3s}
+.win.show{opacity:1;visibility:visible}
+.win .big{font-size:54px;animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
+.win h3{font-family:'Fredoka';font-weight:600;font-size:24px}
+.win p{font-size:13px;opacity:.95;max-width:80%}
+.win .btn{background:#fff;color:var(--green-d);margin-top:6px}
+
+/* ===================== CARDS / FLASHCARDS ===================== */
+.deck-meta{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.deck-meta .bar{flex:1;height:8px;border-radius:5px;background:#e9e6f4;overflow:hidden}
+.deck-meta .bar i{display:block;height:100%;border-radius:5px;background:var(--grad-coral);transition:width .35s ease}
+.deck-meta .ct{font-weight:800;font-size:13px;color:var(--ink-soft)}
+
+.flip{perspective:1200px;height:360px;margin-bottom:14px}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .55s cubic-bezier(.2,.8,.25,1);transform-style:preserve-3d;cursor:pointer}
+.flip.flipped .flip-inner{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:24px;backface-visibility:hidden;display:flex;flex-direction:column;padding:20px;box-shadow:var(--shadow-pop)}
+.face.front{background:linear-gradient(165deg,#ffe9e0,#ffd9c8);align-items:center;text-align:center}
+.face.back{background:linear-gradient(165deg,#efeaff,#e3dbff);transform:rotateY(180deg)}
+.face .top{display:flex;align-items:center;justify-content:space-between;width:100%}
+.face .pill{background:rgba(255,255,255,.7);border-radius:999px;padding:4px 11px;font-size:10.5px;font-weight:700;color:#a55b45}
+.face.back .pill{color:#6b4fd0}
+.face .save{background:none;border:none;font-size:20px;cursor:pointer;color:#f4664f}
+.face .term{font-family:'Fredoka';font-weight:600;font-size:30px;color:#7a3b2c;margin-top:6px}
+.face .phon{font-size:13px;color:#b06a55;margin-top:2px}
+.face .struct{flex:1;display:flex;align-items:center;justify-content:center}
+.face .tap-hint{font-size:11.5px;color:#b87a64;font-weight:600}
+.face.back .head{font-family:'Fredoka';font-weight:600;font-size:20px;color:#4b3a8c}
+.face.back .def{font-size:14px;color:#5a4ba0;line-height:1.5;margin-top:8px;text-align:left}
+.face.back .ex{margin-top:auto;display:flex;gap:8px}
+.face.back .ex div{flex:1;background:rgba(255,255,255,.75);border-radius:12px;padding:9px;text-align:left}
+.face.back .ex b{font-size:12px;color:#4b3a8c}.face.back .ex span{font-size:11px;color:#7a6cc0}
+
+.grade{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.grade button{border:none;cursor:pointer;border-radius:16px;padding:13px 6px;font-weight:800;font-size:13px;color:#fff;
+    display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:var(--shadow-card);transition:transform .12s}
+.grade button:active{transform:scale(.95)}
+.grade .again{background:var(--grad-coral)}
+.grade .hard{background:linear-gradient(150deg,#ffd98a,#f0a32e)}
+.grade .good{background:var(--grad-green)}
+.grade button .e{font-size:19px}
+
+.deck-done{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;height:360px;
+    background:linear-gradient(160deg,#eafaf2,#dcf3e7);border-radius:24px;box-shadow:var(--shadow-pop)}
+.deck-done .big{font-size:56px}
+.deck-done h3{font-family:'Fredoka';font-weight:600;font-size:24px;color:var(--green-d)}
+.deck-done p{font-size:13px;color:var(--ink-soft)}
+
+/* ===================== LEARN ===================== */
+.learn-hero{background:var(--grad-hero);color:#fff;border-radius:22px;padding:20px;margin-bottom:16px;position:relative;overflow:hidden}
+.learn-hero h2{font-family:'Fredoka';font-weight:600;font-size:21px;position:relative}
+.learn-hero p{font-size:13px;opacity:.95;margin-top:4px;max-width:80%;position:relative}
+.learn-hero .blob{position:absolute;border-radius:50%;filter:blur(2px)}
+
+.lesson{display:flex;align-items:center;gap:13px;padding:14px;border-radius:18px;background:#fff;box-shadow:var(--shadow-card), inset 0 0 0 1px rgba(120,132,180,.06);margin-bottom:10px;cursor:pointer;transition:transform .12s}
+.lesson:active{transform:scale(.98)}
+.lesson .ic{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;flex:none;color:#fff;font-size:22px}
+.lesson .tx{flex:1}
+.lesson .tx b{display:block;font-size:15px;font-weight:700}
+.lesson .tx span{font-size:12px;color:var(--ink-faint)}
+.lesson .st{font-size:11px;font-weight:800;padding:5px 9px;border-radius:999px}
+.lesson .st.done{background:#e4f7ea;color:var(--green-d)}
+.lesson .st.go{background:#efe8ff;color:var(--purple-d)}
+
+/* concept detail */
+.concept-card{border-radius:18px;padding:15px;margin-bottom:12px}
+.concept-card.ionic{background:linear-gradient(160deg,#eafaf2,#dbf3e8)}
+.concept-card.coval{background:linear-gradient(160deg,#efeaff,#e3dbff)}
+.concept-card .ch{font-family:'Fredoka';font-weight:600;font-size:16px;text-align:center;margin-bottom:10px}
+.concept-card .scene{display:flex;align-items:center;justify-content:center;gap:18px;height:70px}
+.concept-card .arrow{font-size:22px;color:var(--ink-soft)}
+.concept-card .note{font-size:12.5px;color:var(--ink-soft);text-align:center;margin-top:10px;line-height:1.45}
+.tip{display:flex;gap:9px;align-items:center;background:linear-gradient(150deg,#eaf3ff,#e0ecff);border-radius:14px;padding:13px;font-size:12.5px;color:var(--blue-d);font-weight:600;line-height:1.4}
+
+/* ===================== PROFILE ===================== */
+.prof-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:10px 0 18px}
+.prof-head .av{width:84px;height:84px;border-radius:28px;background:var(--grad-purple);display:grid;place-items:center;color:#fff;font-family:'Fredoka';font-weight:600;font-size:34px;box-shadow:0 16px 30px -14px rgba(122,82,230,.7), inset 0 0 0 2px rgba(255,255,255,.4)}
+.prof-head h2{font-family:'Fredoka';font-weight:600;font-size:22px}
+.prof-head .lvl{display:inline-flex;align-items:center;gap:6px;background:var(--grad-hero);color:#fff;font-weight:800;font-size:12px;padding:5px 13px;border-radius:999px}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#fff;border-radius:18px;padding:14px;box-shadow:var(--shadow-card), inset 0 0 0 1px rgba(120,132,180,.06)}
+.stat .n{font-family:'Fredoka';font-weight:600;font-size:26px;line-height:1}
+.stat .l{font-size:11.5px;color:var(--ink-faint);font-weight:600;margin-top:4px}
+.stat .n.coral{color:var(--coral-d)}.stat .n.purple{color:var(--purple-d)}.stat .n.teal{color:var(--teal-d)}.stat .n.blue{color:var(--blue-d)}
+.badges{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+.badges::-webkit-scrollbar{display:none}
+.badge{flex:none;width:78px;text-align:center}
+.badge .disc{width:60px;height:60px;border-radius:20px;margin:0 auto 6px;display:grid;place-items:center;font-size:26px;color:#fff;box-shadow:var(--shadow-card)}
+.badge span{font-size:10.5px;font-weight:700;color:var(--ink-soft);line-height:1.2;display:block}
+.badge.lock .disc{background:#e7e6ef;color:#b7b6c8}.badge.lock span{color:var(--ink-faint)}
+.set-row{display:flex;align-items:center;gap:12px;padding:13px 14px;background:#fff;border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);margin-bottom:8px}
+.set-row .ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:15px;flex:none}
+.set-row b{flex:1;font-size:14px}
+.toggle{width:44px;height:26px;border-radius:999px;background:#dcdbe8;position:relative;cursor:pointer;transition:background .2s;flex:none}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .2s}
+.toggle.on{background:var(--green-d)}.toggle.on::after{transform:translateX(18px)}
+
+/* ===================== TAB BAR ===================== */
+.tabbar{
+    position:relative;z-index:60;flex:none;
+    display:grid;grid-template-columns:repeat(5,1fr);align-items:center;
+    padding:9px 8px calc(8px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.95));
+    backdrop-filter:blur(16px) saturate(150%);
+    border-top:1px solid var(--line);
+}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;cursor:pointer;
+    color:var(--ink-faint);font-size:9.5px;font-weight:700;padding:5px 0;transition:color .2s}
+.tab svg{width:24px;height:24px;display:block;transition:transform .2s}
+.tab.on{color:var(--coral-d)}
+.tab.on svg{transform:translateY(-1px) scale(1.06)}
+.tab .build-fab{width:46px;height:46px;border-radius:16px;background:var(--grad-hero);display:grid;place-items:center;color:#fff;
+    box-shadow:0 12px 22px -10px rgba(244,102,79,.8);margin-top:-14px;transition:transform .2s}
+.tab.on .build-fab{transform:translateY(-2px) scale(1.04)}
+.home-indicator{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:118px;height:5px;border-radius:3px;background:rgba(20,26,52,.32);z-index:90}
+
+@media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+@media (max-height:640px){ .device{height:min(97vh, 190vw, 860px)} }
+</style>
+</head>
+<body>
+
+<!-- flask logo (reused) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="flask" viewBox="0 0 48 48">
+    <path d="M19 7v9l-8 13a4 4 0 0 0 3.4 6.1h6.6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M11 30.5h11l-2.5-4h-6z" fill="#f7a6a0"/>
+    <path d="M29 7v9l8 13a4 4 0 0 1-3.4 6.1H27" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M37 30.5H26l2.5-4h6z" fill="#9bd9a0"/>
+    <line x1="16.5" y1="7" x2="21.5" y2="7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+    <line x1="26.5" y1="7" x2="31.5" y2="7" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+  </symbol>
+</defs></svg>
+
+<div class="device" role="application" aria-label="MoleMates app prototype">
+  <div class="viewport">
+    <!-- dynamic island -->
+    <div class="island" aria-hidden="true"><i class="cam"></i></div>
+
+    <!-- status bar -->
+    <div class="statusbar" aria-hidden="true">
+      <span>9:41</span>
+      <span class="right">
+        <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="7" width="3" height="5" rx="1" fill="currentColor"/><rect x="5" y="4" width="3" height="8" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+        <svg width="17" height="12" viewBox="0 0 17 12"><path d="M8.5 2.5C5.6 2.5 3 3.7 1 5.6l1.4 1.4C4 5.4 6.1 4.5 8.5 4.5s4.5.9 6.1 2.5L16 5.6C14 3.7 11.4 2.5 8.5 2.5z" fill="currentColor"/><circle cx="8.5" cy="9.5" r="1.6" fill="currentColor"/></svg>
+        <svg width="26" height="13" viewBox="0 0 26 13"><rect x="1" y="1" width="21" height="11" rx="3" fill="none" stroke="currentColor" stroke-opacity=".4"/><rect x="2.5" y="2.5" width="16" height="8" rx="1.6" fill="currentColor"/><rect x="23.5" y="4" width="1.6" height="5" rx=".8" fill="currentColor" fill-opacity=".5"/></svg>
+      </span>
+    </div>
+
+    <!-- screen stage -->
+    <div class="stage">
+
+      <!-- ===================== HOME ===================== -->
+      <section class="screen active" data-screen="home">
+        <div class="hero-greet">
+          <div class="av">S</div>
+          <div>
+            <div class="g1">Good morning,</div>
+            <div class="g2">Sean 👋</div>
+          </div>
+          <div class="streak">🔥 12</div>
+        </div>
+
+        <div class="card progress-card">
+          <div class="ring">
+            <svg width="84" height="84" viewBox="0 0 84 84">
+              <circle cx="42" cy="42" r="34" fill="none" stroke="#e7e3f6" stroke-width="9"/>
+              <circle id="homeRing" cx="42" cy="42" r="34" fill="none" stroke="url(#rg)" stroke-width="9" stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="60"/>
+              <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a98cf6"/><stop offset="1" stop-color="#62a8ff"/></linearGradient></defs>
+            </svg>
+            <span class="pct">72<span style="font-size:12px">%</span></span>
+          </div>
+          <div class="meta">
+            <span class="eyebrow">Today's goal</span>
+            <b>Almost there!</b>
+            <span>18 of 25 cards reviewed</span>
+            <span class="chip">Great pace ✨</span>
+          </div>
+        </div>
+
+        <div class="section-label"><b>Continue learning</b><a data-goto="learn">See all</a></div>
+
+        <div class="learn-row" data-goto="cards">
+          <span class="ic" style="background:var(--grad-coral)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="13" height="16" rx="2"/><path d="M8 9h5M8 13h5"/><path d="M19 7l2 1v9a2 2 0 0 1-2 2"/></svg>
+          </span>
+          <div class="tx"><b>Functional Groups</b><span>14 of 24 cards</span><div class="bar"><i style="width:58%"></i></div></div>
+          <span class="go">›</span>
+        </div>
+        <div class="learn-row" data-goto="build">
+          <span class="ic" style="background:var(--grad-blue)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="9" r="2.2"/><circle cx="9" cy="18" r="2.2"/><path d="M7.6 7.6l8.8 1M8.4 8l1 8"/></svg>
+          </span>
+          <div class="tx"><b>Build: Ethanol</b><span>Molecule challenge</span><div class="bar"><i style="width:30%;background:var(--grad-blue)"></i></div></div>
+          <span class="go">›</span>
+        </div>
+        <div class="learn-row" data-goto="learn">
+          <span class="ic" style="background:var(--grad-green)">
+            <svg width="22" height="22" viewBox="0 0 48 48"><use href="#flask"/></svg>
+          </span>
+          <div class="tx"><b>Bonding Basics</b><span>Concept lesson</span><div class="bar"><i style="width:80%;background:var(--grad-green)"></i></div></div>
+          <span class="go">›</span>
+        </div>
+
+        <div class="section-label"><b>Molecule of the day</b></div>
+        <div class="card motd" data-goto="build">
+          <div class="scene" id="motdScene"></div>
+          <div class="tx">
+            <b>Caffeine</b>
+            <div class="f">C₈H₁₀N₄O₂</div>
+            <p>The world's favorite stimulant. Tap to explore its structure →</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== BUILD ===================== -->
+      <section class="screen" data-screen="build">
+        <div class="app-head"><h1>Builder</h1><button class="act" id="buildPrev" title="Previous challenge">‹</button><button class="act" id="buildNext" title="Next challenge">›</button></div>
+
+        <div class="card build-prompt">
+          <span class="q">🎯</span>
+          <div>
+            <b id="targetName">Build Water</b>
+            <span id="targetHint">Tap atoms below to assemble H₂O</span>
+          </div>
+          <button class="skip" id="buildShow">Reveal</button>
+        </div>
+
+        <div class="canvas" id="canvas">
+          <div class="hint">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="7" r="2"/><circle cx="19" cy="9" r="2"/><path d="M7 8l3 2.5M17 10l-3 1.5"/></svg>
+            <b>Your canvas is empty</b>
+            <span>Tap an element below to start building</span>
+          </div>
+          <div class="win" id="win">
+            <div class="big">🎉</div>
+            <h3 id="winTitle">Nice — that's Water!</h3>
+            <p id="winDesc">You matched the target molecule. Ready for the next one?</p>
+            <button class="btn" id="winNext">Next challenge →</button>
+          </div>
+        </div>
+
+        <div class="formula-bar">
+          <div class="formula">
+            <span class="lbl">Your molecule</span>
+            <span class="val" id="formulaVal">—</span>
+            <span class="name empty" id="formulaName">Add atoms to begin</span>
+          </div>
+          <button class="tool-btn" id="undoBtn" title="Undo">↺</button>
+          <button class="tool-btn" id="clearBtn" title="Clear">🗑</button>
+        </div>
+
+        <div class="palette" id="palette"></div>
+      </section>
+
+      <!-- ===================== CARDS ===================== -->
+      <section class="screen" data-screen="cards">
+        <div class="app-head"><h1>Flashcards</h1><button class="act" id="cardsShuffle" title="Restart deck">↺</button></div>
+
+        <div class="deck-meta">
+          <span class="ct" id="deckCount">1 / 6</span>
+          <div class="bar"><i id="deckBar" style="width:16%"></i></div>
+          <span class="ct" style="color:var(--coral-d)" id="savedCount">♡ 0</span>
+        </div>
+
+        <div id="cardArea"></div>
+      </section>
+
+      <!-- ===================== LEARN ===================== -->
+      <section class="screen" data-screen="learn">
+        <div class="app-head"><h1>Learn</h1></div>
+        <div class="learn-hero">
+          <span class="blob" style="width:120px;height:120px;background:rgba(255,255,255,.18);top:-40px;right:-20px"></span>
+          <span class="blob" style="width:70px;height:70px;background:rgba(255,255,255,.14);bottom:-30px;left:40%"></span>
+          <h2>Core concepts, made visual.</h2>
+          <p>Short, glossy lessons that make chemistry click.</p>
+        </div>
+        <div id="lessonList"></div>
+      </section>
+
+      <!-- concept detail (overlay screen) -->
+      <section class="screen" data-screen="concept">
+        <div class="app-head"><button class="back" data-goto="learn">‹</button><h1 id="conceptTitle">Bonding Basics</h1></div>
+        <div id="conceptBody"></div>
+      </section>
+
+      <!-- ===================== PROFILE ===================== -->
+      <section class="screen" data-screen="profile">
+        <div class="app-head"><h1>Profile</h1><button class="act">⚙</button></div>
+        <div class="prof-head">
+          <div class="av">S</div>
+          <h2>Sean</h2>
+          <span class="lvl">⚡ Level 7 · Chem Explorer</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="n coral">12</div><div class="l">Day streak</div></div>
+          <div class="stat"><div class="n purple">248</div><div class="l">Cards mastered</div></div>
+          <div class="stat"><div class="n teal">37</div><div class="l">Molecules built</div></div>
+          <div class="stat"><div class="n blue">94%</div><div class="l">Avg. accuracy</div></div>
+        </div>
+        <div class="section-label"><b>Achievements</b></div>
+        <div class="badges">
+          <div class="badge"><div class="disc" style="background:var(--grad-coral)">🔥</div><span>Hot streak</span></div>
+          <div class="badge"><div class="disc" style="background:var(--grad-blue)">⚗️</div><span>First build</span></div>
+          <div class="badge"><div class="disc" style="background:var(--grad-purple)">🧠</div><span>100 cards</span></div>
+          <div class="badge lock"><div class="disc">🔒</div><span>Org. master</span></div>
+          <div class="badge lock"><div class="disc">🔒</div><span>30-day</span></div>
+        </div>
+        <div class="section-label"><b>Preferences</b></div>
+        <div class="set-row"><span class="ic" style="background:var(--grad-purple)">🔊</span><b>Sound effects</b><span class="toggle on" data-toggle></span></div>
+        <div class="set-row"><span class="ic" style="background:var(--grad-blue)">🌙</span><b>Reduce motion</b><span class="toggle" data-toggle></span></div>
+        <div class="set-row"><span class="ic" style="background:var(--grad-teal)">📣</span><b>Daily reminder</b><span class="toggle on" data-toggle></span></div>
+      </section>
+
+    </div><!-- /stage -->
+
+    <!-- ===================== TAB BAR ===================== -->
+    <nav class="tabbar" role="tablist">
+      <button class="tab on" data-tab="home" role="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" stroke-linejoin="round"/></svg>
+        Home
+      </button>
+      <button class="tab" data-tab="cards" role="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="14" height="14" rx="2.5"/><path d="M7 9h6M7 13h4"/><path d="M20 8v9a2 2 0 0 1-2 2"/></svg>
+        Cards
+      </button>
+      <button class="tab" data-tab="build" role="tab" aria-label="Build">
+        <span class="build-fab"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="9" r="2.2"/><circle cx="10" cy="18" r="2.2"/><path d="M7.7 8.3l8.6 1M7.6 9l2 7.2"/></svg></span>
+        Build
+      </button>
+      <button class="tab" data-tab="learn" role="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6.5C3 5 4 4.5 6 4.5s5 1 6 2c1-1 4-2 6-2s3 .5 3 2v12c0 1-1 1.2-3 1.2s-5 .8-6 1.8c-1-1-4-1.8-6-1.8s-3-.2-3-1.2z"/><path d="M12 6.5V20"/></svg>
+        Learn
+      </button>
+      <button class="tab" data-tab="profile" role="tab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        Profile
+      </button>
+    </nav>
+    <div class="home-indicator" aria-hidden="true"></div>
+  </div><!-- /viewport -->
+</div><!-- /device -->
+
+<script>
+/* ============================================================================
+   DATA MODELS  (→ Swift: structs in a Models.swift file)
+   ============================================================================ */
+const ELEMENTS = {
+    C: { name:'Carbon',   sym:'C', cls:'carbon'   },
+    H: { name:'Hydrogen', sym:'H', cls:'hydrogen' },
+    O: { name:'Oxygen',   sym:'O', cls:'oxygen'   },
+    N: { name:'Nitrogen', sym:'N', cls:'nitrogen' },
+};
+const PALETTE = ['C','H','O','N'];
+
+// known molecules keyed by canonical formula → friendly name
+const MOLECULES = {
+    'H2O':'Water', 'CO2':'Carbon dioxide', 'CH4':'Methane', 'O2':'Oxygen gas',
+    'N2':'Nitrogen gas', 'NH3':'Ammonia', 'C2H6O':'Ethanol', 'CH2O':'Formaldehyde',
+    'H2':'Hydrogen gas', 'CO':'Carbon monoxide', 'C2H4':'Ethylene', 'C2H6':'Ethane',
+    'C2H2':'Acetylene', 'HCN':'Hydrogen cyanide', 'CH4O':'Methanol', 'C3H8':'Propane',
+};
+
+// builder challenges
+const CHALLENGES = [
+    { name:'Build Water',     formula:'H2O',   hint:'Tap atoms below to assemble H₂O',  recipe:['O','H','H'] },
+    { name:'Build Methane',   formula:'CH4',   hint:'One carbon, four hydrogens',        recipe:['C','H','H','H','H'] },
+    { name:'Build Ammonia',   formula:'NH3',   hint:'One nitrogen, three hydrogens',     recipe:['N','H','H','H'] },
+    { name:'Build CO₂',       formula:'CO2',   hint:'One carbon, two oxygens',           recipe:['C','O','O'] },
+    { name:'Build Ethanol',   formula:'C2H6O', hint:'Two carbons, six hydrogens, one O', recipe:['C','C','O','H','H','H','H','H','H'] },
+];
+
+// flashcard deck (organic functional groups)
+const DECK = [
+    { term:'Alcohol',  phon:'al-kuh-hawl',   group:'–OH', def:'A hydroxyl group (–OH) bonded to a carbon. Polar and able to hydrogen-bond.', ex:[['Ethanol','CH₃CH₂OH'],['Methanol','CH₃OH']], atoms:[['carbon','C'],['oxygen','O'],['hydrogen','H']] },
+    { term:'Carboxylic acid', phon:'kar-bok-sil-ik', group:'–COOH', def:'A carbonyl plus a hydroxyl on the same carbon. Donates a proton — these are acidic.', ex:[['Acetic acid','CH₃COOH'],['Formic acid','HCOOH']], atoms:[['carbon','C'],['oxygen','O'],['oxygen','O']] },
+    { term:'Amine',    phon:'uh-meen',       group:'–NH₂', def:'A nitrogen bonded to carbon and hydrogens. Basic — it accepts protons.', ex:[['Methylamine','CH₃NH₂'],['Aniline','C₆H₅NH₂']], atoms:[['nitrogen','N'],['hydrogen','H'],['hydrogen','H']] },
+    { term:'Ketone',   phon:'kee-tone',      group:'C=O', def:'A carbonyl (C=O) flanked by two carbons. Common in solvents and sugars.', ex:[['Acetone','(CH₃)₂CO'],['Butanone','C₄H₈O']], atoms:[['carbon','C'],['oxygen','O'],['carbon','C']] },
+    { term:'Aldehyde', phon:'al-duh-hide',   group:'–CHO', def:'A carbonyl at the end of a chain, with at least one hydrogen attached.', ex:[['Formaldehyde','CH₂O'],['Acetaldehyde','C₂H₄O']], atoms:[['carbon','C'],['oxygen','O'],['hydrogen','H']] },
+    { term:'Ether',    phon:'ee-thur',       group:'C–O–C', def:'An oxygen bridging two carbons. Fairly unreactive — great as a solvent.', ex:[['Diethyl ether','C₄H₁₀O'],['THF','C₄H₈O']], atoms:[['carbon','C'],['oxygen','O'],['carbon','C']] },
+];
+
+// concept lessons
+const CONCEPTS = [
+    { id:'bonding', icon:'🔗', grad:'var(--grad-coral)', title:'Bonding Basics', sub:'Ionic vs. covalent', status:'go' },
+    { id:'states',  icon:'💧', grad:'var(--grad-blue)',  title:'States of Matter', sub:'Solid · liquid · gas', status:'done' },
+    { id:'periodic',icon:'📊', grad:'var(--grad-teal)',  title:'Periodic Trends', sub:'Size, energy, electronegativity', status:'go' },
+    { id:'moles',   icon:'⚖️', grad:'var(--grad-purple)',title:'The Mole', sub:'Counting the uncountable', status:'go' },
+    { id:'reactions',icon:'⚡', grad:'var(--grad-green)', title:'Reaction Types', sub:'Synthesis, decomposition, more', status:'go' },
+];
+
+/* ============================================================================
+   APP STATE  (→ Swift: @Observable AppModel)
+   ============================================================================ */
+const APP = {
+    screen:'home',
+    builder:{ challengeIndex:0, atoms:[] },   // atoms: array of element keys
+    study:{ index:0, flipped:false, saved:0 },
+};
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const haptic = () => { if (navigator.vibrate) navigator.vibrate(8); };
+
+/* Embed mode: ?embed=transparent (or any embed param) drops the page
+   backdrop so the host surface shows through behind the floating phone. */
+(function(){
+    var p = new URLSearchParams(location.search);
+    if (p.has('embed') || p.get('chrome') === 'none') document.body.classList.add('embed');
+})();
+
+/* ============================================================================
+   ROUTER  (→ Swift: TabView selection)
+   ============================================================================ */
+function showScreen(name){
+    APP.screen = name;
+    $$('.screen').forEach(s => s.classList.toggle('active', s.dataset.screen === name));
+    // tab highlight (concept maps to learn tab)
+    const tabFor = (name === 'concept') ? 'learn' : name;
+    $$('.tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tabFor));
+    // reset that screen's scroll
+    const el = $(`.screen[data-screen="${name}"]`);
+    if (el) el.scrollTop = 0;
+}
+$$('.tab').forEach(t => t.addEventListener('click', () => { haptic(); showScreen(t.dataset.tab); }));
+$$('[data-goto]').forEach(el => el.addEventListener('click', () => { haptic(); showScreen(el.dataset.goto); }));
+
+/* ============================================================================
+   BUILDER  (→ Swift: BuilderViewModel)
+   ============================================================================ */
+function buildPalette(){
+    const p = $('#palette'); p.innerHTML = '';
+    PALETTE.forEach(k => {
+        const e = ELEMENTS[k];
+        const b = document.createElement('button');
+        b.className = 'pel';
+        b.innerHTML = `<span class="atom ${e.cls}" style="--s:40px">${e.cls==='hydrogen'?'':e.sym}</span><b>${e.name}</b><span>${e.sym}</span>`;
+        b.addEventListener('click', () => addAtom(k));
+        p.appendChild(b);
+    });
+}
+function addAtom(k){ haptic(); APP.builder.atoms.push(k); renderBuilder(); checkWin(); }
+function clearBuilder(){ APP.builder.atoms = []; $('#win').classList.remove('show'); renderBuilder(); }
+function undoAtom(){ APP.builder.atoms.pop(); renderBuilder(); }
+
+function currentFormula(){
+    const counts = {};
+    APP.builder.atoms.forEach(k => counts[k] = (counts[k]||0)+1);
+    // Hill system-ish ordering: C, H, then alphabetical
+    const order = Object.keys(counts).sort((a,b)=>{
+        if (a==='C') return -1; if (b==='C') return 1;
+        if (a==='H') return -1; if (b==='H') return 1;
+        return a.localeCompare(b);
+    });
+    return { counts, order, key: order.map(k=>k+(counts[k]>1?counts[k]:'')).join('') };
+}
+function formulaHTML(order, counts){
+    if (!order.length) return '—';
+    return order.map(k => k + (counts[k]>1 ? `<sub>${counts[k]}</sub>` : '')).join('');
+}
+
+function renderBuilder(){
+    const canvas = $('#canvas');
+    // remove placed atoms/bonds (keep .hint & .win)
+    canvas.querySelectorAll('.placed,.cbond').forEach(n=>n.remove());
+    const atoms = APP.builder.atoms;
+    canvas.classList.toggle('has', atoms.length>0);
+
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    const cx = W/2, cy = H/2;
+    const positions = [];
+    if (atoms.length === 1){
+        positions.push([cx,cy]);
+    } else {
+        // central + ring layout: largest (C/N/O) center if present
+        const centerIdx = atoms.findIndex(k=>k==='C'||k==='N'||k==='O');
+        const ringIdxs = atoms.map((_,i)=>i).filter(i=>i!==centerIdx);
+        const R = Math.min(W,H)*0.30;
+        if (centerIdx>=0) positions[centerIdx] = [cx,cy];
+        ringIdxs.forEach((idx,j)=>{
+            const a = (j/ringIdxs.length)*Math.PI*2 - Math.PI/2;
+            positions[idx] = [cx + Math.cos(a)*R, cy + Math.sin(a)*R];
+        });
+        if (centerIdx<0){ // no center atom — spread all on ring
+            atoms.forEach((_,i)=>{ const a=(i/atoms.length)*Math.PI*2; positions[i]=[cx+Math.cos(a)*R, cy+Math.sin(a)*R]; });
+        }
+        // draw bonds from center to ring
+        if (centerIdx>=0){
+            ringIdxs.forEach(idx=>{
+                const [x1,y1]=positions[centerIdx],[x2,y2]=positions[idx];
+                const len=Math.hypot(x2-x1,y2-y1), ang=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+                const bond=document.createElement('div'); bond.className='cbond';
+                bond.style.cssText=`left:${x1}px;top:${y1}px;width:${len}px;transform:translateY(-50%) rotate(${ang}deg)`;
+                canvas.appendChild(bond);
+            });
+        }
+    }
+    atoms.forEach((k,i)=>{
+        const e=ELEMENTS[k]; const [x,y]=positions[i]||[cx,cy];
+        const big = (k==='C'||k==='N'||k==='O');
+        const a=document.createElement('div');
+        a.className='placed atom '+e.cls;
+        a.style.cssText=`left:${x}px;top:${y}px;--s:${big?52:34}px`;
+        a.textContent = e.cls==='hydrogen' ? '' : e.sym;
+        canvas.appendChild(a);
+    });
+
+    // formula readout
+    const {counts,order,key}=currentFormula();
+    $('#formulaVal').innerHTML = formulaHTML(order,counts);
+    const nameEl=$('#formulaName');
+    if (!atoms.length){ nameEl.textContent='Add atoms to begin'; nameEl.classList.add('empty'); }
+    else if (MOLECULES[key]){ nameEl.textContent='✓ '+MOLECULES[key]; nameEl.classList.remove('empty'); }
+    else { nameEl.textContent='Unknown molecule — keep going'; nameEl.classList.add('empty'); }
+}
+
+function setChallenge(i){
+    APP.builder.challengeIndex = (i + CHALLENGES.length) % CHALLENGES.length;
+    const c = CHALLENGES[APP.builder.challengeIndex];
+    $('#targetName').textContent = c.name;
+    $('#targetHint').innerHTML = c.hint;
+    clearBuilder();
+}
+function checkWin(){
+    const c = CHALLENGES[APP.builder.challengeIndex];
+    if (currentFormula().key === c.formula){
+        const win=$('#win');
+        $('#winTitle').textContent = `Nice — that's ${MOLECULES[c.formula]||c.name.replace('Build ','')}!`;
+        $('#winDesc').textContent = 'You matched the target molecule. Ready for the next one?';
+        win.classList.add('show'); haptic();
+    }
+}
+$('#buildNext').addEventListener('click', ()=>setChallenge(APP.builder.challengeIndex+1));
+$('#buildPrev').addEventListener('click', ()=>setChallenge(APP.builder.challengeIndex-1));
+$('#winNext').addEventListener('click', ()=>setChallenge(APP.builder.challengeIndex+1));
+$('#clearBtn').addEventListener('click', ()=>{ haptic(); clearBuilder(); });
+$('#undoBtn').addEventListener('click', ()=>{ haptic(); undoAtom(); });
+$('#buildShow').addEventListener('click', ()=>{
+    const c=CHALLENGES[APP.builder.challengeIndex];
+    APP.builder.atoms=[...c.recipe]; renderBuilder(); checkWin();
+});
+
+/* ============================================================================
+   FLASHCARDS  (→ Swift: StudyViewModel)
+   ============================================================================ */
+function structScene(atoms){
+    // a tiny glossy chain of the card's key atoms
+    const wrap=document.createElement('div');
+    wrap.style.cssText='display:flex;align-items:center;gap:0';
+    atoms.forEach((a,i)=>{
+        if (i>0){ const b=document.createElement('div'); b.style.cssText='width:24px;height:6px;border-radius:4px;background:linear-gradient(180deg,#fff,#e6e9f3 50%,#c7cee0);margin:0 -4px;z-index:0;box-shadow:0 1px 2px rgba(31,42,68,.15)'; wrap.appendChild(b); }
+        const at=document.createElement('div');
+        at.className='atom '+a[0];
+        at.style.cssText=`--s:${a[0]==='hydrogen'?40:56}px;z-index:1`;
+        at.textContent = a[0]==='hydrogen'?'':a[1];
+        wrap.appendChild(at);
+    });
+    return wrap;
+}
+function renderCard(){
+    const area=$('#cardArea');
+    const s=APP.study;
+    // progress
+    $('#deckCount').textContent = `${Math.min(s.index+1,DECK.length)} / ${DECK.length}`;
+    $('#deckBar').style.width = `${(Math.min(s.index,DECK.length)/DECK.length)*100}%`;
+    $('#savedCount').textContent = `♡ ${s.saved}`;
+
+    if (s.index >= DECK.length){
+        area.innerHTML = `
+          <div class="deck-done">
+            <div class="big">🏆</div>
+            <h3>Deck complete!</h3>
+            <p>You reviewed ${DECK.length} cards · ${s.saved} saved</p>
+            <button class="btn" id="restartDeck" style="background:var(--grad-green);margin-top:6px">Study again ↺</button>
+          </div>`;
+        $('#deckBar').style.width='100%';
+        $('#restartDeck').addEventListener('click', restartDeck);
+        return;
+    }
+
+    const c=DECK[s.index];
+    area.innerHTML=`
+      <div class="flip${s.flipped?' flipped':''}" id="flip">
+        <div class="flip-inner">
+          <div class="face front">
+            <div class="top"><span class="pill">Functional group · ${c.group}</span><button class="save" id="saveBtn" title="Save">${s.savedIds&&s.savedIds.has(s.index)?'♥':'♡'}</button></div>
+            <div class="term">${c.term}</div>
+            <div class="phon">(${c.phon})</div>
+            <div class="struct" id="cardStruct"></div>
+            <div class="tap-hint">Tap card to flip ↻</div>
+          </div>
+          <div class="face back">
+            <div class="top"><span class="pill">Definition</span></div>
+            <div class="head">${c.term}</div>
+            <div class="def">${c.def}</div>
+            <div class="ex">
+              <div><b>${c.ex[0][0]}</b><br><span>${c.ex[0][1]}</span></div>
+              <div><b>${c.ex[1][0]}</b><br><span>${c.ex[1][1]}</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="grade">
+        <button class="again" data-grade="again"><span class="e">↺</span>Again</button>
+        <button class="hard" data-grade="hard"><span class="e">⤴</span>Hard</button>
+        <button class="good" data-grade="good"><span class="e">✓</span>Got it</button>
+      </div>`;
+    $('#cardStruct').appendChild(structScene(c.atoms));
+
+    $('#flip').addEventListener('click', e=>{
+        if (e.target.closest('.save')) return;
+        s.flipped=!s.flipped; $('#flip').classList.toggle('flipped',s.flipped); haptic();
+    });
+    $('#saveBtn').addEventListener('click', e=>{
+        e.stopPropagation();
+        s.savedIds = s.savedIds || new Set();
+        if (s.savedIds.has(s.index)){ s.savedIds.delete(s.index); s.saved--; }
+        else { s.savedIds.add(s.index); s.saved++; }
+        haptic(); renderCard();
+    });
+    $$('[data-grade]').forEach(b=>b.addEventListener('click',()=>{ haptic(); nextCard(); }));
+}
+function nextCard(){ APP.study.index++; APP.study.flipped=false; renderCard(); }
+function restartDeck(){ APP.study.index=0; APP.study.flipped=false; APP.study.saved=0; APP.study.savedIds=new Set(); renderCard(); }
+$('#cardsShuffle').addEventListener('click', ()=>{ haptic(); restartDeck(); });
+
+/* ============================================================================
+   LEARN + CONCEPTS
+   ============================================================================ */
+function renderLessons(){
+    const list=$('#lessonList'); list.innerHTML='';
+    CONCEPTS.forEach(c=>{
+        const row=document.createElement('div');
+        row.className='lesson';
+        row.innerHTML=`<span class="ic" style="background:${c.grad}">${c.icon}</span>
+            <div class="tx"><b>${c.title}</b><span>${c.sub}</span></div>
+            <span class="st ${c.status}">${c.status==='done'?'Done':'Start'}</span>`;
+        row.addEventListener('click', ()=>{ haptic(); openConcept(c); });
+        list.appendChild(row);
+    });
+}
+/* per-lesson detail content (→ Swift: each becomes its own detail View) */
+const dot = (c,s) => `<span style="width:${s||7}px;height:${s||7}px;border-radius:50%;background:${c};display:inline-block"></span>`;
+const CONCEPT_DETAIL = {
+    bonding: `
+      <div class="concept-card ionic">
+        <div class="ch">Ionic — electron transfer</div>
+        <div class="scene">
+          <div class="atom purple" style="--s:46px">Na</div><span class="arrow">→</span><div class="atom teal" style="--s:50px">Cl</div>
+        </div>
+        <div class="note">Sodium gives an electron to chlorine. Opposite charges snap together — that's an ionic bond.</div>
+      </div>
+      <div class="concept-card coval">
+        <div class="ch">Covalent — electron sharing</div>
+        <div class="scene">
+          <div class="atom nitrogen" style="--s:44px">H</div>
+          <span style="display:flex;gap:5px">${dot('#8a67ef')}${dot('#8a67ef')}</span>
+          <div class="atom nitrogen" style="--s:44px">H</div>
+        </div>
+        <div class="note">Two hydrogens share a pair of electrons so both feel "full" and stable — a covalent bond.</div>
+      </div>
+      <div class="tip">💡 Spot the transfer vs. the share and you've got bonding. ❤️</div>`,
+    states: `
+      <div class="concept-card coval">
+        <div class="ch">Solid → Liquid → Gas</div>
+        <div class="scene" style="gap:22px">
+          <span style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px">${Array(9).fill(dot('#62a8ff',10)).join('')}</span>
+          <span style="display:flex;flex-wrap:wrap;width:46px;gap:6px;justify-content:center">${Array(6).fill(dot('#a98cf6',10)).join('')}</span>
+          <span style="position:relative;width:54px;height:42px">${[ '8% 10%','70% 4%','30% 60%','86% 70%','50% 32%'].map(p=>`<span style="position:absolute;left:${p.split(' ')[0]};top:${p.split(' ')[1]}">${dot('#6ed4c2',10)}</span>`).join('')}</span>
+        </div>
+        <div class="note">Same particles — adding energy just lets them move more freely. Tightly packed → flowing → free.</div>
+      </div>
+      <div class="tip">💡 Melting and boiling are just particles gaining enough energy to break loose.</div>`,
+    periodic: `
+      <div class="concept-card ionic">
+        <div class="ch">Atomic radius shrinks across a period →</div>
+        <div class="scene">
+          <div class="atom teal" style="--s:54px">Li</div><span class="arrow">›</span>
+          <div class="atom purple" style="--s:42px">C</div><span class="arrow">›</span>
+          <div class="atom oxygen" style="--s:32px">F</div>
+        </div>
+        <div class="note">More protons pull the same shell of electrons in tighter as you move right.</div>
+      </div>
+      <div class="concept-card coval">
+        <div class="ch">Electronegativity grows ↗</div>
+        <div class="note">Atoms toward the top-right pull bonding electrons hardest — fluorine is the champion.</div>
+      </div>
+      <div class="tip">💡 Trends radiate from the bottom-left toward the top-right.</div>`,
+    moles: `
+      <div class="concept-card coval">
+        <div class="ch">1 mole = 6.022 × 10²³</div>
+        <div class="scene">
+          <span style="font-family:'Fredoka';font-weight:600;font-size:26px;color:#8a67ef">6.022×10²³</span>
+        </div>
+        <div class="note">A mole is just a chemist's "dozen" — a fixed count of particles (Avogadro's number).</div>
+      </div>
+      <div class="concept-card ionic">
+        <div class="ch">grams ↔ moles ↔ particles</div>
+        <div class="scene" style="gap:10px;font-weight:800;color:var(--ink-soft)">
+          <span class="pill" style="background:#e4f7ea;color:var(--green-d)">grams</span><span class="arrow">↔</span>
+          <span class="pill" style="background:#efe8ff;color:var(--purple-d)">moles</span><span class="arrow">↔</span>
+          <span class="pill" style="background:#eaf3ff;color:var(--blue-d)">particles</span>
+        </div>
+        <div class="note">Molar mass (g/mol) bridges mass you can weigh and particles you can count.</div>
+      </div>
+      <div class="tip">💡 Moles let you count atoms by weighing them.</div>`,
+    reactions: `
+      <div class="concept-card ionic">
+        <div class="ch">Synthesis — A + B → AB</div>
+        <div class="scene">
+          <div class="atom nitrogen" style="--s:36px">H</div><span style="font-weight:800;color:var(--ink-soft)">+</span>
+          <div class="atom oxygen" style="--s:40px">O</div><span class="arrow">→</span>
+          <div class="atom teal" style="--s:44px">H₂O</div>
+        </div>
+        <div class="note">Two or more reactants combine into a single product.</div>
+      </div>
+      <div class="concept-card coval">
+        <div class="ch">Decomposition — AB → A + B</div>
+        <div class="scene">
+          <div class="atom purple" style="--s:44px">AB</div><span class="arrow">→</span>
+          <div class="atom oxygen" style="--s:34px">A</div><span style="font-weight:800;color:var(--ink-soft)">+</span>
+          <div class="atom nitrogen" style="--s:34px">B</div>
+        </div>
+        <div class="note">One compound breaks apart into simpler pieces.</div>
+      </div>
+      <div class="tip">💡 Also watch for single/double replacement and combustion.</div>`,
+};
+
+function openConcept(c){
+    $('#conceptTitle').textContent = c.title;
+    $('#conceptBody').innerHTML = `
+      <div class="learn-hero" style="background:${c.grad};margin-bottom:14px">
+        <h2>${c.title}</h2><p>${c.sub}</p>
+      </div>
+      ${CONCEPT_DETAIL[c.id] || CONCEPT_DETAIL.bonding}`;
+    showScreen('concept');
+}
+
+/* ============================================================================
+   PROFILE toggles
+   ============================================================================ */
+$$('[data-toggle]').forEach(t=>t.addEventListener('click',()=>{ haptic(); t.classList.toggle('on'); }));
+
+/* ============================================================================
+   INIT
+   ============================================================================ */
+function buildMotd(){
+    // decorative caffeine-ish cluster on the Home "molecule of the day" card
+    const s=$('#motdScene'); s.innerHTML='';
+    const make=(cls,x,y,sz)=>{const a=document.createElement('div');a.className='atom '+cls;a.style.cssText=`position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);--s:${sz}px`;s.appendChild(a);return a;};
+    make('carbon',50,50,30); make('nitrogen',24,30,22); make('oxygen',78,30,20);
+    make('nitrogen',30,76,18); make('hydrogen',74,74,16); make('hydrogen',60,20,14);
+}
+
+buildPalette();
+setChallenge(0);
+renderCard();
+renderLessons();
+buildMotd();
+showScreen('home');
+
+// re-layout builder on resize so atoms stay centered
+let rT; window.addEventListener('resize', ()=>{ clearTimeout(rT); rT=setTimeout(renderBuilder,150); });
+</script>
+</body>
+</html>
