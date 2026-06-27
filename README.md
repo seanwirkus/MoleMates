@@ -13,6 +13,7 @@ that doubles as the clickable spec for the native **SwiftUI / iOS** build.
   GitHub Pages build.
 - **Concept / landing page:** [seanwirkus.com/molemates.html](https://seanwirkus.com/molemates.html)
 - **Atom style guide:** [`style-guide.html`](style-guide.html) — the design system: how every atom looks, derived from real electron counts.
+- **Interactive 3D lab:** [`atoms-3d.html`](atoms-3d.html) — glassy WebGL atoms you can rotate, hover, and bond.
 
 No build step, no dependencies — just open the file.
 

@@ -315,6 +315,7 @@ body{
     <a class="brand" href="index.html"><span class="tile"><svg><use href="#flask"/></svg></span><b>MoleMates</b></a>
     <div class="nav-links">
         <a href="https://seanwirkus.com/molemates.html">Concept</a>
+        <a href="atoms-3d.html">3D atoms</a>
         <a href="index.html" class="primary">Open the app ↗</a>
     </div>
 </nav>
@@ -325,6 +326,39 @@ body{
         <h1>Atom <span class="g">Style Guide</span></h1>
         <p>Scientifically accurate, emotionally intuitive atoms for learning chemistry. Every atom is a little creature whose <b>mood shows how close it is to a full shell</b> — the chemistry is the design.</p>
     </header>
+
+    <!-- FEATURED — interactive 3D lab -->
+    <style>
+        .lab3d{position:relative;border-radius:28px;overflow:hidden;margin-top:8px;
+            box-shadow:var(--shadow-soft), inset 0 0 0 1px rgba(255,255,255,.5)}
+        .lab3d-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+            padding:18px clamp(18px,3vw,30px);background:linear-gradient(100deg,rgba(189,164,251,.9),rgba(98,168,255,.82));color:#fff}
+        .lab3d-head .eyebrow{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;
+            background:rgba(255,255,255,.22);padding:5px 11px;border-radius:999px;font-weight:700}
+        .lab3d-head h2{font-family:'Fredoka';font-weight:600;font-size:clamp(18px,2.4vw,24px)}
+        .lab3d-head .grow{flex:1}
+        .lab3d-head a{font-size:13px;font-weight:700;color:#fff;text-decoration:none;background:rgba(255,255,255,.22);padding:9px 16px;border-radius:999px}
+        .lab3d-frame{position:relative;height:clamp(440px,64vh,680px);background:linear-gradient(180deg,#f7f3ff,#eef2fc)}
+        .lab3d-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+    </style>
+    <section class="lab3d" aria-label="Interactive 3D atoms">
+        <div class="lab3d-head">
+            <span class="eyebrow">Interactive · WebGL</span>
+            <h2>Real glass you can rotate</h2>
+            <span class="grow"></span>
+            <a href="atoms-3d.html">Full screen ↗</a>
+        </div>
+        <div class="lab3d-frame" id="lab3dFrame">
+            <iframe title="MoleMates interactive 3D atoms" loading="lazy" data-src="atoms-3d.html"></iframe>
+        </div>
+    </section>
+    <script>
+    (function(){
+        var f=document.getElementById('lab3dFrame'), ifr=f&&f.querySelector('iframe');
+        if(!ifr) return;
+        new IntersectionObserver(function(e,o){e.forEach(function(x){if(x.isIntersecting){ifr.src=ifr.getAttribute('data-src');o.disconnect();}});},{rootMargin:'300px 0px'}).observe(f);
+    })();
+    </script>
 
     <!-- 1 — CORE ANATOMY -->
     <section class="section">

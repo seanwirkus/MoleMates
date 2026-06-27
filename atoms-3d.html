@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoleMates — Interactive 3D Atoms</title>
+<meta name="description" content="MoleMates interactive 3D atom lab — glassy, physically-based atoms you can rotate. Drag to orbit, hover for details, click open sites to bond and watch each atom reach a content, full shell.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+    font-family:'Inter',system-ui,sans-serif;color:#1f294a;
+    background:
+        radial-gradient(80% 60% at 12% 6%, #fbe9f1 0%, rgba(251,233,241,0) 55%),
+        radial-gradient(70% 60% at 90% 8%, #e7e2ff 0%, rgba(231,226,255,0) 55%),
+        radial-gradient(80% 70% at 80% 100%, #def6ef 0%, rgba(222,246,239,0) 55%),
+        linear-gradient(180deg,#f7f3ff 0%,#eef2fc 100%);
+    -webkit-font-smoothing:antialiased;
+}
+#app{position:fixed;inset:0;z-index:0}
+#app canvas{display:block;cursor:grab}
+#app canvas:active{cursor:grabbing}
+
+/* HUD */
+.hud{position:fixed;z-index:5;pointer-events:none}
+.title{top:clamp(14px,3vw,28px);left:clamp(14px,3vw,30px)}
+.title .row{display:flex;align-items:center;gap:10px}
+.title .tile{width:34px;height:34px;border-radius:11px;background:#fff;display:grid;place-items:center;box-shadow:0 8px 18px -8px rgba(40,52,96,.4)}
+.title .tile svg{width:21px;height:21px}
+.title b{font-family:'Fredoka';font-weight:600;font-size:18px}
+.title p{margin-top:8px;font-size:13px;color:#5b6488;max-width:30ch;line-height:1.5;font-weight:500}
+
+.hint{bottom:clamp(14px,3vw,26px);left:50%;transform:translateX(-50%);
+    display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+    background:rgba(255,255,255,.55);backdrop-filter:blur(12px);padding:9px 16px;border-radius:999px;
+    box-shadow:0 12px 30px -16px rgba(40,52,96,.5), inset 0 0 0 1px rgba(255,255,255,.6)}
+.hint span{font-size:12px;font-weight:600;color:#5b6488;display:inline-flex;align-items:center;gap:6px}
+.hint b{color:#1f294a}
+
+/* element info card (follows hover) */
+.card{position:fixed;z-index:6;pointer-events:none;opacity:0;transform:translateY(6px);transition:opacity .18s, transform .18s;
+    background:rgba(255,255,255,.72);backdrop-filter:blur(16px) saturate(160%);border-radius:18px;padding:14px 16px;min-width:184px;
+    box-shadow:0 20px 50px -22px rgba(40,52,96,.6), inset 0 0 0 1px rgba(255,255,255,.6)}
+.card.show{opacity:1;transform:translateY(0)}
+.card .top{display:flex;align-items:baseline;gap:8px}
+.card .sym{font-family:'Fredoka';font-weight:600;font-size:24px}
+.card .name{font-size:13px;color:#5b6488;font-weight:600}
+.card .mood{margin-left:auto;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px}
+.card .stat{margin-top:9px;font-size:12.5px;color:#5b6488;line-height:1.7}
+.card .stat b{color:#1f294a}
+.card .bar{height:6px;border-radius:4px;background:#e7e3f6;margin-top:9px;overflow:hidden}
+.card .bar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#a98cf6,#62a8ff);transition:width .35s}
+.card .act{margin-top:9px;font-size:11px;color:#8a67ef;font-weight:700}
+
+/* top-right controls */
+.tools{top:clamp(14px,3vw,28px);right:clamp(14px,3vw,30px);display:flex;gap:8px;pointer-events:auto}
+.tools button{border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:12.5px;color:#1f294a;
+    background:rgba(255,255,255,.7);backdrop-filter:blur(10px);padding:9px 14px;border-radius:999px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.6), 0 8px 18px -10px rgba(40,52,96,.4);transition:transform .12s}
+.tools button:active{transform:scale(.95)}
+.tools a{text-decoration:none}
+.tools .solid{background:linear-gradient(100deg,#ff8d79,#a98cf6);color:#fff;box-shadow:none}
+
+.loading{position:fixed;inset:0;z-index:7;display:grid;place-items:center;color:#8b93b4;font-weight:600;font-size:14px;transition:opacity .4s}
+.loading.hide{opacity:0;pointer-events:none}
+.nowebgl{position:fixed;inset:0;z-index:8;display:none;place-items:center;text-align:center;padding:40px;color:#5b6488}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="loading" id="loading">Warming up the glass…</div>
+<div class="nowebgl" id="nowebgl"><div><b style="font-size:18px">WebGL isn't available here.</b><br><br>This page needs hardware 3D. Try a desktop browser, or view the flat <a href="style-guide.html" style="color:#8a67ef">style guide</a>.</div></div>
+
+<div class="hud title">
+    <div class="row">
+        <span class="tile"><svg viewBox="0 0 48 48">
+            <path d="M19 7v9l-8 13a4 4 0 0 0 3.4 6.1h6.6" fill="none" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M11 30.5h11l-2.5-4h-6z" fill="#f7a6a0"/><path d="M29 7v9l8 13a4 4 0 0 1-3.4 6.1H27" fill="none" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M37 30.5H26l2.5-4h6z" fill="#9bd9a0"/><line x1="16.5" y1="7" x2="21.5" y2="7" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round"/><line x1="26.5" y1="7" x2="31.5" y2="7" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round"/>
+        </svg></span>
+        <b>Interactive 3D Atoms</b>
+    </div>
+    <p>Real glass, real chemistry. Each atom's notches and mood come from its electron count.</p>
+</div>
+
+<div class="hud tools">
+    <button id="resetBtn">Reset bonds</button>
+    <a href="style-guide.html"><button>← Style guide</button></a>
+    <a href="index.html"><button class="solid">Open app ↗</button></a>
+</div>
+
+<div class="hud hint">
+    <span><b>Drag</b> to rotate</span>
+    <span><b>Hover</b> for details</span>
+    <span><b>Click an atom</b> to bond it</span>
+</div>
+
+<div class="card" id="card">
+    <div class="top"><span class="sym" id="cSym">C</span><span class="name" id="cName">Carbon</span><span class="mood" id="cMood">overwhelmed</span></div>
+    <div class="stat"><b id="cSites">4</b> open · <b id="cFilled">0</b> bonded · <b id="cLone">0</b> lone pairs</div>
+    <div class="bar"><i id="cBar" style="width:0%"></i></div>
+    <div class="act" id="cAct">Click to add a bond →</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
+
+const mount = document.querySelector("#app");
+
+/* ===================== CHEMISTRY (rules, not lookups) ===================== */
+const CPK = {
+    H:'#eef1f8', B:'#f4a6bb', C:'#4b4e57', N:'#5ea7ff', O:'#ff6b6b',
+    F:'#8ed79a', Cl:'#72d68b', S:'#ffd95e', P:'#ff9d5c', Ne:'#b8a9f2', Ar:'#a8d6ec',
+};
+const ELEMENTS = [
+    { sym:'H',  name:'Hydrogen',   sites:1, lone:0, duet:true },
+    { sym:'B',  name:'Boron',      sites:3, lone:0, deficient:true },
+    { sym:'C',  name:'Carbon',     outer:4 },
+    { sym:'N',  name:'Nitrogen',   outer:5 },
+    { sym:'O',  name:'Oxygen',     outer:6 },
+    { sym:'F',  name:'Fluorine',   outer:7 },
+    { sym:'Cl', name:'Chlorine',   outer:7 },
+    { sym:'S',  name:'Sulfur',     outer:6 },
+    { sym:'P',  name:'Phosphorus', outer:5 },
+    { sym:'Ne', name:'Neon',       noble:true },
+    { sym:'Ar', name:'Argon',      noble:true },
+];
+function rule(el){
+    if (el.noble) return { sites:0, lone:4 };
+    if (el.sites != null) return { sites:el.sites, lone:el.lone };
+    const sites = 8 - el.outer;
+    return { sites, lone:(el.outer - sites)/2 };
+}
+const MOOD = ['content','curious','wanting','anxious','overwhelmed'];
+const MOOD_COLOR = { content:'#5cc06d', curious:'#3aa0d8', wanting:'#e0a92e', anxious:'#f0883e', overwhelmed:'#f4664f', blissful:'#8a67ef' };
+function moodFor(open, noble){ return noble ? 'blissful' : MOOD[Math.min(open,4)]; }
+
+/* ===================== RENDERER / SCENE ===================== */
+let renderer, composer, scene, camera, controls, pmrem;
+try {
+    renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+} catch(e){}
+if (!renderer || !renderer.getContext()){
+    document.getElementById('nowebgl').style.display='grid';
+    document.getElementById('loading').classList.add('hide');
+    throw new Error('no webgl');
+}
+
+scene = new THREE.Scene();           // transparent — page backdrop shows through
+
+camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.1, 100);
+camera.position.set(0, 0.2, 12);
+
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.04;
+mount.appendChild(renderer.domElement);
+
+pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan = false;
+controls.enableZoom = false;                 // keep page scroll free when embedded
+controls.rotateSpeed = 0.6;
+controls.minPolarAngle = THREE.MathUtils.degToRad(62);
+controls.maxPolarAngle = THREE.MathUtils.degToRad(114);
+controls.minAzimuthAngle = THREE.MathUtils.degToRad(-46);
+controls.maxAzimuthAngle = THREE.MathUtils.degToRad(46);
+
+scene.add(new THREE.HemisphereLight('#ffffff', '#c7b8ff', 1.15));
+const key = new THREE.DirectionalLight('#ffffff', 1.5); key.position.set(4,5,5); scene.add(key);
+const fill = new THREE.DirectionalLight('#cddcff', 0.8); fill.position.set(-4,2,3); scene.add(fill);
+
+composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.18, 0.6, 0.9));
+composer.addPass(new OutputPass());
+
+/* ===================== MATERIALS ===================== */
+function glassMaterial(color){
+    const m = new THREE.MeshPhysicalMaterial({
+        color, metalness:0, roughness:0.08,
+        transmission:0.34, thickness:0.8, ior:1.43, transparent:true, opacity:0.98,
+        clearcoat:1, clearcoatRoughness:0.09, specularIntensity:0.5, envMapIntensity:0.6,
+        attenuationColor:new THREE.Color(color), attenuationDistance:1.5,
+        iridescence:0.22, iridescenceIOR:1.35, iridescenceThicknessRange:[120,420],
+    });
+    if ('dispersion' in m) m.dispersion = 0.4;   // chromatic glass (three ≥ r162)
+    return m;
+}
+function fresnelMaterial(color){
+    return new THREE.ShaderMaterial({
+        uniforms:{ rimColor:{value:new THREE.Color(color)}, intensity:{value:0.85} },
+        vertexShader:`varying vec3 vN;varying vec3 vV;void main(){vec4 mv=modelViewMatrix*vec4(position,1.0);vN=normalize(normalMatrix*normal);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+        fragmentShader:`uniform vec3 rimColor;uniform float intensity;varying vec3 vN;varying vec3 vV;void main(){float r=1.0-max(dot(vN,vV),0.0);r=pow(r,2.3);gl_FragColor=vec4(rimColor,r*intensity);}`,
+        transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+    });
+}
+const ELECTRON='#9b5cff';
+
+/* ===================== ATOM FACTORY ===================== */
+const SLOTS = ['top','right','bottom','left'];
+const SLOTPOS = {
+    top:new THREE.Vector3(0,0.82,0.56), right:new THREE.Vector3(0.82,0,0.56),
+    bottom:new THREE.Vector3(0,-0.82,0.56), left:new THREE.Vector3(-0.82,0,0.56),
+};
+
+function makeTextSprite(text){
+    const c=document.createElement('canvas'); c.width=512; c.height=256;
+    const x=c.getContext('2d'); x.clearRect(0,0,512,256);
+    x.font='800 150px Fredoka, Inter, sans-serif'; x.fillStyle='#0f172a'; x.textAlign='center'; x.textBaseline='middle';
+    x.fillText(text,256,138);
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace;
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true,depthWrite:false}));
+    s.scale.set(1.1,0.55,1); return s;
+}
+function disc(x,y,z,r,mat){const m=new THREE.Mesh(new THREE.CircleGeometry(r,32),mat);m.position.set(x,y,z);return m;}
+function tube(points,rad,color){return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),24,rad,8,false),new THREE.MeshBasicMaterial({color,depthWrite:false}));}
+
+function buildFace(mood){
+    const g=new THREE.Group();
+    const ink=new THREE.MeshBasicMaterial({color:'#111827',depthWrite:false});
+    const white=new THREE.MeshBasicMaterial({color:'#ffffff',depthWrite:false});
+    const blush=new THREE.MeshBasicMaterial({color:'#ff8fb3',transparent:true,opacity:0.7,depthWrite:false});
+    if (mood==='blissful'){
+        g.add(tube([new THREE.Vector3(-0.27,0.12,0.965),new THREE.Vector3(-0.18,0.2,0.965),new THREE.Vector3(-0.09,0.12,0.965)],0.018,'#111827'));
+        g.add(tube([new THREE.Vector3(0.09,0.12,0.965),new THREE.Vector3(0.18,0.2,0.965),new THREE.Vector3(0.27,0.12,0.965)],0.018,'#111827'));
+    } else {
+        const er = mood==='overwhelmed'?0.1:0.082;
+        g.add(disc(-0.21,0.1,0.978,er,ink)); g.add(disc(0.21,0.1,0.978,er,ink));
+        g.add(disc(-0.19,0.13,0.985,0.026,white)); g.add(disc(0.23,0.13,0.985,0.026,white));
+    }
+    g.add(disc(-0.33,-0.02,0.955,0.055,blush)); g.add(disc(0.33,-0.02,0.955,0.055,blush));
+    // mouth
+    if (mood==='content'||mood==='curious'||mood==='blissful'){
+        g.add(tube([new THREE.Vector3(-0.1,-0.1,0.968),new THREE.Vector3(0,-0.17,0.968),new THREE.Vector3(0.1,-0.1,0.968)],0.02,'#111827'));
+    } else if (mood==='overwhelmed'){
+        g.add(disc(0,-0.13,0.968,0.07,ink));
+    } else { // wanting / anxious frown
+        g.add(tube([new THREE.Vector3(-0.1,-0.12,0.968),new THREE.Vector3(0,-0.05,0.968),new THREE.Vector3(0.1,-0.12,0.968)],0.02,'#111827'));
+    }
+    if (mood==='anxious'||mood==='overwhelmed'){
+        g.add(tube([new THREE.Vector3(-0.28,0.24,0.97),new THREE.Vector3(-0.16,0.3,0.97)],0.012,'#111827'));
+        g.add(tube([new THREE.Vector3(0.16,0.3,0.97),new THREE.Vector3(0.28,0.24,0.97)],0.012,'#111827'));
+    }
+    // Force the face to paint ON TOP of the transmissive glass body (which is
+    // drawn after — and in front of — the surface decals). Without this the
+    // glass washes the face out.
+    g.renderOrder = 30;
+    g.traverse(o=>{ if(o.material){ o.material.depthTest=false; o.material.transparent=true; o.renderOrder=30; } });
+    return g;
+}
+
+function buildNotch(type){
+    const n=new THREE.Group();
+    // raised glassy rim
+    n.add(new THREE.Mesh(new THREE.TorusGeometry(0.17,0.034,18,48),
+        new THREE.MeshPhysicalMaterial({color:'#ffffff',roughness:0.05,transmission:0.4,thickness:0.4,transparent:true,opacity:0.9,clearcoat:1,clearcoatRoughness:0.02,envMapIntensity:1.5})));
+    if (type==='open'){
+        // recessed socket disc + hungry glow ring
+        n.add(disc(0,0,0,0.16,new THREE.MeshBasicMaterial({color:'#0c1430',transparent:true,opacity:0.35,side:THREE.DoubleSide,depthWrite:false})));
+        const glow=new THREE.Mesh(new THREE.TorusGeometry(0.17,0.05,18,48),new THREE.MeshBasicMaterial({color:'#8ca0ff',transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false}));
+        n.add(glow); n.userData.glow=glow;
+    } else if (type==='filled'){
+        n.add(new THREE.Mesh(new THREE.SphereGeometry(0.14,32,32),new THREE.MeshPhysicalMaterial({color:'#eef1ff',roughness:0.05,clearcoat:1,clearcoatRoughness:0.02,envMapIntensity:1.6})));
+    } else if (type==='pair'){
+        n.add(disc(0,0,0,0.16,new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0.5,side:THREE.DoubleSide,depthWrite:false})));
+        for (const dx of [-0.06,0.06]){
+            const e=new THREE.Mesh(new THREE.SphereGeometry(0.05,24,24),new THREE.MeshPhysicalMaterial({color:ELECTRON,emissive:ELECTRON,emissiveIntensity:0.4,roughness:0.02,clearcoat:1}));
+            e.position.set(dx,0,0.07); n.add(e);
+        }
+    } else if (type==='empty'){
+        const r=n.children[0].material; r.opacity=0.4; // faint
+    }
+    return n;
+}
+
+function octetProgress(el, filled){
+    const {sites,lone}=rule(el);
+    if (el.noble) return 1;
+    if (el.duet) return Math.min(filled/Math.max(sites,1),1);
+    return Math.min((filled+lone)/4, 1);
+}
+
+function rebuild(atom){
+    const dyn=atom.userData.dyn;
+    // dispose previous
+    dyn.traverse(o=>{ if(o.geometry)o.geometry.dispose(); if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.dispose()); } });
+    dyn.clear();
+    const el=atom.userData.el; const {sites,lone}=rule(el);
+    const filled=atom.userData.filled;
+    const open=sites-filled;
+    // assign slots: filled bonds, then open sites, then lone pairs, then empty(deficient)
+    let s=0; const used=[];
+    for (let i=0;i<filled;i++){ used.push([SLOTS[s++],'filled']); }
+    for (let i=0;i<open;i++){ used.push([SLOTS[s++],'open']); }
+    for (let i=0;i<lone;i++){ used.push([SLOTS[s++],'pair']); }
+    if (el.deficient && s<4) used.push([SLOTS[s++],'empty']);
+    used.forEach(([slot,type])=>{
+        const n=buildNotch(type); n.position.copy(SLOTPOS[slot]); n.lookAt(n.position.clone().multiplyScalar(2)); dyn.add(n);
+    });
+    // face
+    dyn.add(buildFace(moodFor(open, el.noble)));
+    // progress ring
+    const prog=octetProgress(el,filled);
+    if (prog>0){
+        const ring=new THREE.Mesh(new THREE.TorusGeometry(1.16,0.02,12,140, Math.PI*2*prog),
+            new THREE.MeshBasicMaterial({color: prog>=1?'#7bd88f':'#b69bff', transparent:true, opacity:0.85}));
+        ring.rotation.x=Math.PI/2; ring.rotation.z=-Math.PI/2; dyn.add(ring);
+    }
+    atom.userData.open=open;
+    atom.userData.mood=moodFor(open, el.noble);
+}
+
+function createAtom(el){
+    const color=CPK[el.sym];
+    const atom=new THREE.Group();
+    const body=new THREE.Mesh(new THREE.SphereGeometry(1,80,80), glassMaterial(color));
+    body.userData.atom=atom; atom.userData.body=body; atom.add(body);
+    atom.add(new THREE.Mesh(new THREE.SphereGeometry(1.03,72,72), fresnelMaterial(color)));
+    // soft static shell hint
+    const shell=new THREE.Mesh(new THREE.TorusGeometry(1.18,0.01,12,140), new THREE.MeshBasicMaterial({color:'#cdbcff',transparent:true,opacity:0.35}));
+    shell.rotation.x=Math.PI/2; atom.add(shell);
+    // glossy highlights — kept high & to the edges so they never wash the face
+    [[-0.34,0.56,0.78,0.12,0.34],[0.42,0.6,0.66,0.055,0.26],[-0.52,-0.34,0.74,0.05,0.2]].forEach(([x,y,z,r,o])=>{
+        atom.add(disc(x,y,z,r,new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:o,depthWrite:false})));
+    });
+    const label=makeTextSprite(el.sym); label.position.set(0,-1.5,0.2); atom.add(label);
+    const dyn=new THREE.Group(); atom.add(dyn);
+    const {sites,lone}=rule(el);
+    atom.userData={ el, sites, lone, filled:0, dyn, body };
+    rebuild(atom);
+    return atom;
+}
+
+/* ===================== LAYOUT ===================== */
+const group=new THREE.Group(); scene.add(group);
+const atoms=[];
+const COLS=4, GX=2.45, GY=2.55, SCALE=0.78;
+const rows=Math.ceil(ELEMENTS.length/COLS);
+ELEMENTS.forEach((el,i)=>{
+    const a=createAtom(el);
+    const col=i%COLS, row=Math.floor(i/COLS);
+    const colsInRow=Math.min(COLS, ELEMENTS.length-row*COLS);
+    const x=(col-(colsInRow-1)/2)*GX;
+    const y=((rows-1)/2-row)*GY;
+    a.position.set(x,y,0); a.scale.setScalar(SCALE);
+    a.userData.base=a.position.clone();
+    group.add(a); atoms.push(a);
+});
+
+/* ===================== INTERACTION ===================== */
+const ray=new THREE.Raycaster(); const ptr=new THREE.Vector2();
+const card=document.getElementById('card');
+let hovered=null, downPos=null, dragged=false;
+const bodies=atoms.map(a=>a.userData.body);
+
+function setPtr(e){ ptr.x=(e.clientX/innerWidth)*2-1; ptr.y=-(e.clientY/innerHeight)*2+1; }
+function pick(){ ray.setFromCamera(ptr,camera); const hit=ray.intersectObjects(bodies,false)[0]; return hit?hit.object.userData.atom:null; }
+
+function showCard(atom,e){
+    const u=atom.userData, el=u.el, {sites,lone}=rule(el);
+    document.getElementById('cSym').textContent=el.sym;
+    document.getElementById('cName').textContent=el.name;
+    const moodEl=document.getElementById('cMood');
+    moodEl.textContent=u.mood; moodEl.style.background=MOOD_COLOR[u.mood]+'22'; moodEl.style.color=MOOD_COLOR[u.mood];
+    document.getElementById('cSites').textContent=u.open;
+    document.getElementById('cFilled').textContent=u.filled;
+    document.getElementById('cLone').textContent=lone;
+    document.getElementById('cBar').style.width=(octetProgress(el,u.filled)*100).toFixed(0)+'%';
+    const act=document.getElementById('cAct');
+    if (el.noble) act.textContent='Full shell — nothing to do 😌';
+    else if (u.open===0) act.textContent='Content — full octet 🎉';
+    else act.textContent='Click to add a bond →';
+    card.classList.add('show');
+    const cx=Math.min(e.clientX+18, innerWidth-210), cy=Math.min(e.clientY+18, innerHeight-150);
+    card.style.left=cx+'px'; card.style.top=cy+'px';
+}
+
+renderer.domElement.addEventListener('pointermove',e=>{
+    setPtr(e);
+    if (downPos && Math.hypot(e.clientX-downPos.x,e.clientY-downPos.y)>5) dragged=true;
+    const a=pick();
+    if (a!==hovered){
+        if (hovered) hovered.userData.hover=false;
+        hovered=a;
+        if (a){ a.userData.hover=true; renderer.domElement.style.cursor='pointer'; }
+        else { renderer.domElement.style.cursor='grab'; card.classList.remove('show'); }
+    }
+    if (a) showCard(a,e);
+});
+renderer.domElement.addEventListener('pointerdown',e=>{ downPos={x:e.clientX,y:e.clientY}; dragged=false; });
+renderer.domElement.addEventListener('pointerup',e=>{
+    if (!dragged){
+        setPtr(e); const a=pick();
+        if (a){
+            const u=a.userData;
+            if (!u.el.noble && u.open>0){ u.filled++; rebuild(a); u.bounce=1; if(navigator.vibrate)navigator.vibrate(8); showCard(a,e); }
+        }
+    }
+    downPos=null;
+});
+renderer.domElement.addEventListener('pointerleave',()=>{ if(hovered){hovered.userData.hover=false;hovered=null;} card.classList.remove('show'); });
+document.getElementById('resetBtn').addEventListener('click',()=>{ atoms.forEach(a=>{ if(a.userData.filled){a.userData.filled=0;rebuild(a);} }); });
+
+/* ===================== ANIMATE ===================== */
+const clock=new THREE.Clock();
+function animate(){
+    const t=clock.getElapsedTime();
+    atoms.forEach((a,i)=>{
+        const u=a.userData;
+        a.position.y = u.base.y + Math.sin(t*1.1 + i*0.7)*0.05;
+        const targetScale = SCALE*(u.hover?1.12:1) + (u.bounce?Math.sin((1-u.bounce)*Math.PI)*0.12:0);
+        a.scale.setScalar(THREE.MathUtils.lerp(a.scale.x, targetScale, 0.18));
+        if (u.bounce){ u.bounce-=0.04; if(u.bounce<0)u.bounce=0; }
+        a.rotation.y = Math.sin(t*0.5 + i)*0.06;
+        // pulse hungry glows
+        a.userData.dyn.traverse(o=>{ if(o.userData.glow){ o.userData.glow.material.opacity=0.35+Math.sin(t*3+i)*0.18; } });
+    });
+    controls.update();
+    composer.render();
+}
+renderer.setAnimationLoop(animate);
+
+addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight); composer.setSize(innerWidth,innerHeight);
+});
+
+// fade out loader once the first frame is up (with a safety fallback)
+const hideLoader=()=>document.getElementById('loading').classList.add('hide');
+requestAnimationFrame(()=>requestAnimationFrame(hideLoader));
+setTimeout(hideLoader, 1500);
+</script>
+</body>
+</html>
