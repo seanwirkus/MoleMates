@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoleMates — Atom Style Guide</title>
+<meta name="description" content="MoleMates Atom Style Guide — scientifically accurate, emotionally intuitive glassy atoms. Every atom is a creature whose mood shows how close it is to a full shell. Notches show bonding sites and lone pairs; the design teaches real chemistry through feeling and shape.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<!--
+  MoleMates Atom Style Guide
+  --------------------------------------------------------------------------
+  Atoms are rendered from RULES, not lookups, so this page is the single
+  source of truth for the design system (and maps cleanly to SwiftUI later):
+
+     bonding sites = 8 − outer electrons         (nonmetals, 4–7 e⁻)
+     lone pairs    = (outer electrons − sites) / 2
+     mood          = f(open bonding sites)        (deterministic)
+
+  Edit ELEMENTS / the rule() function and every atom on the page updates.
+-->
+<style>
+:root{
+    --ink:#1f294a; --ink-soft:#5b6488; --ink-faint:#8b93b4;
+    --line:rgba(120,132,180,.16);
+    --card:rgba(255,255,255,.62);
+    --coral:#ff8d79; --coral-d:#f4664f;
+    --blue:#62a8ff;  --blue-d:#3a86f0;
+    --purple:#a98cf6; --purple-d:#8a67ef;
+    --teal:#6ed4c2;  --teal-d:#3eb8a4;
+    --green:#8ed79a; --green-d:#5cc06d;
+    --shadow-soft:0 26px 60px -28px rgba(38,49,92,.45);
+    --shadow-card:0 18px 40px -22px rgba(40,52,96,.3);
+    font-synthesis:none;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+    font-family:'Inter',system-ui,sans-serif;color:var(--ink);
+    background:linear-gradient(180deg,#f3f1fb 0%,#eef2fc 50%,#eaf4f6 100%);
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;position:relative;
+}
+/* glassy aurora + bubbles backdrop */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg .blob{position:absolute;border-radius:50%;filter:blur(64px);opacity:.5;mix-blend-mode:multiply}
+.bg .b1{width:44vw;height:44vw;left:-8vw;top:-8vw;background:radial-gradient(circle,#d9c8ff,transparent 62%)}
+.bg .b2{width:40vw;height:40vw;right:-8vw;top:-4vw;background:radial-gradient(circle,#c7e0ff,transparent 62%)}
+.bg .b3{width:46vw;height:46vw;right:4vw;bottom:-14vw;background:radial-gradient(circle,#c2f0e6,transparent 62%)}
+.bg .b4{width:36vw;height:36vw;left:6vw;bottom:-12vw;background:radial-gradient(circle,#ffd6e6,transparent 62%)}
+.bg .bub{position:absolute;border-radius:50%;
+    background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.9),rgba(255,255,255,.08) 46%,rgba(255,255,255,0) 70%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.4)}
+
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 80px}
+
+/* ---- nav ---- */
+.nav{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;
+    padding:14px clamp(16px,4vw,40px);backdrop-filter:blur(14px) saturate(150%);
+    background:linear-gradient(180deg,rgba(243,241,251,.82),rgba(243,241,251,.4));border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+.brand .tile{width:36px;height:36px;border-radius:11px;background:#fff;display:grid;place-items:center;
+    box-shadow:0 6px 16px -6px rgba(40,52,96,.4), inset 0 0 0 1px var(--line)}
+.brand .tile svg{width:22px;height:22px}
+.brand b{font-family:'Fredoka';font-weight:600;font-size:17px}
+.nav-links{display:flex;gap:8px}
+.nav-links a{font-size:13px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:8px 14px;border-radius:999px;
+    background:rgba(255,255,255,.6);box-shadow:inset 0 0 0 1px var(--line);transition:transform .2s,color .2s}
+.nav-links a:hover{transform:translateY(-1px);color:var(--ink)}
+.nav-links a.primary{background:linear-gradient(100deg,#ff8d79,#a98cf6);color:#fff;box-shadow:none}
+
+/* ---- header ---- */
+.head{text-align:center;padding:clamp(40px,7vw,84px) 0 clamp(24px,4vw,46px)}
+.head .logo{display:inline-flex;align-items:center;gap:12px;margin-bottom:14px}
+.head .logo .tile{width:48px;height:48px;border-radius:15px;background:#fff;display:grid;place-items:center;
+    box-shadow:0 12px 26px -12px rgba(40,52,96,.5), inset 0 0 0 1px var(--line)}
+.head .logo .tile svg{width:30px;height:30px}
+.head .logo b{font-family:'Fredoka';font-weight:600;font-size:24px}
+.head h1{font-family:'Fredoka';font-weight:700;font-size:clamp(34px,6.4vw,68px);line-height:1.02;letter-spacing:-.5px}
+.head h1 .g{background:linear-gradient(100deg,#a98cf6,#62a8ff 55%,#3eb8a4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.head p{margin:16px auto 0;max-width:60ch;font-size:clamp(15px,1.6vw,19px);color:var(--ink-soft);font-weight:500}
+
+/* ---- section cards ---- */
+.section{background:var(--card);backdrop-filter:blur(12px) saturate(150%);border-radius:28px;
+    padding:clamp(22px,3.4vw,40px);margin-top:24px;box-shadow:var(--shadow-card), inset 0 0 0 1px rgba(255,255,255,.5)}
+.sec-head{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.sec-num{width:34px;height:34px;border-radius:11px;flex:none;display:grid;place-items:center;color:#fff;font-family:'Fredoka';font-weight:600;font-size:17px;
+    background:linear-gradient(150deg,#bda4fb,#8a67ef);box-shadow:0 8px 16px -8px rgba(122,82,230,.7)}
+.sec-head h2{font-family:'Fredoka';font-weight:600;font-size:clamp(20px,2.6vw,28px)}
+.sec-sub{color:var(--ink-soft);font-size:14.5px;margin:2px 0 0 48px}
+
+/* ============ GLASSY ATOM ============ */
+.gatom{
+    --s:96px; --c1:#fff; --c2:#dfe4f2; --c3:#aeb6cf; --lp:#3a3f57;
+    position:relative;width:var(--s);height:var(--s);border-radius:50%;flex:none;
+    background:
+        radial-gradient(circle at 30% 24%, rgba(255,255,255,.92), rgba(255,255,255,0) 44%),
+        radial-gradient(circle at 72% 84%, rgba(0,0,0,.26), transparent 56%),
+        radial-gradient(circle at 50% 46%, var(--c1), var(--c2) 50%, var(--c3));
+    box-shadow:
+        inset -.16em -.2em .5em rgba(0,0,0,.24),
+        inset .14em .16em .38em rgba(255,255,255,.6),
+        0 .5em 1em -.2em rgba(31,42,68,.28);
+}
+/* glassy specular sheen */
+.gatom::before{content:"";position:absolute;top:9%;left:16%;width:46%;height:32%;border-radius:50%;
+    background:radial-gradient(50% 50% at 50% 50%, rgba(255,255,255,.95), rgba(255,255,255,0) 72%);filter:blur(.4px);z-index:4}
+.gatom .face{position:absolute;inset:0;width:100%;height:100%;z-index:5;pointer-events:none}
+.face .ey{fill:#2a2f45}
+.face .hl{fill:#fff}
+.face .mo{fill:none;stroke:#2a2f45;stroke-width:4.6;stroke-linecap:round;stroke-linejoin:round}
+.face .mo.fill{fill:#2a2f45;stroke:none}
+.face .br,.face .br2,.face .lid{fill:none;stroke:#2a2f45;stroke-width:4;stroke-linecap:round}
+.face .ck{fill:rgba(244,102,79,.42)}
+.face .spk{fill:#ffd45e}
+.face .swt{fill:#7fc4ff}
+
+/* notches at the 4 cardinal directions */
+.notch{position:absolute;width:31%;height:31%;border-radius:50%;transform:translate(-50%,-50%);z-index:3}
+.notch.pos-top{left:50%;top:5%}
+.notch.pos-bottom{left:50%;top:95%}
+.notch.pos-left{left:5%;top:50%}
+.notch.pos-right{left:95%;top:50%}
+/* open bonding site = empty glowing socket (reads hungry) */
+.notch.bond{
+    background:radial-gradient(circle at 50% 38%, rgba(0,0,0,.30), rgba(0,0,0,.06) 72%);
+    box-shadow:inset 0 .12em .3em rgba(0,0,0,.4), 0 0 0 .14em rgba(255,255,255,.55), 0 0 .5em .12em var(--glow,rgba(120,150,255,.65));
+    animation:hungry 2.4s ease-in-out infinite;
+}
+@keyframes hungry{0%,100%{box-shadow:inset 0 .12em .3em rgba(0,0,0,.4),0 0 0 .14em rgba(255,255,255,.55),0 0 .4em .06em var(--glow,rgba(120,150,255,.5))}
+    50%{box-shadow:inset 0 .12em .3em rgba(0,0,0,.4),0 0 0 .14em rgba(255,255,255,.65),0 0 .7em .2em var(--glow,rgba(120,150,255,.85))}}
+/* filled bonding site = satisfied knob */
+.notch.filled{
+    background:radial-gradient(circle at 38% 32%, rgba(255,255,255,.9), rgba(255,255,255,0) 50%), radial-gradient(circle at 50% 50%, var(--c1), var(--c2) 60%, var(--c3));
+    box-shadow:inset -.04em -.05em .12em rgba(0,0,0,.25), 0 0 0 .12em rgba(255,255,255,.5), 0 .12em .25em rgba(31,42,68,.3);
+}
+/* empty (electron-deficient, e.g. boron) — faint dashed slot */
+.notch.empty{background:transparent;box-shadow:inset 0 0 0 .1em rgba(120,132,180,.32);opacity:.55}
+/* lone pair = two electrons cradled in a light notch */
+.notch.lone{
+    background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.7), rgba(255,255,255,.15) 72%);
+    box-shadow:inset 0 .08em .22em rgba(0,0,0,.18), 0 0 0 .1em rgba(255,255,255,.5);
+    display:flex;align-items:center;justify-content:center;gap:16%;
+}
+.notch.lone i{width:27%;height:27%;border-radius:50%;background:var(--lp);box-shadow:0 1px 2px rgba(0,0,0,.35)}
+
+/* radical: one lonely unpaired electron */
+.notch.radical{background:radial-gradient(circle at 50% 38%, rgba(255,255,255,.65), rgba(255,255,255,.12) 72%);
+    box-shadow:inset 0 .08em .22em rgba(0,0,0,.16);display:grid;place-items:center;animation:hungry 1.6s ease-in-out infinite}
+.notch.radical i{width:27%;height:27%;border-radius:50%;background:#f4664f;box-shadow:0 0 .4em #ff8d79}
+
+/* charge badge */
+.badge{position:absolute;right:-6%;top:-6%;width:34%;height:34%;border-radius:50%;z-index:6;
+    display:grid;place-items:center;font-weight:800;color:#fff;font-size:calc(var(--s)*.2);line-height:1;
+    box-shadow:0 .25em .5em -.12em rgba(0,0,0,.5), inset 0 0 0 .08em rgba(255,255,255,.4)}
+.badge.plus{background:linear-gradient(150deg,#8bc0ff,#3a85ef)}
+.badge.minus{background:linear-gradient(150deg,#ffa48f,#f4664f)}
+
+/* optional symbol on body */
+.gatom .sym{position:absolute;inset:0;display:grid;place-items:center;z-index:5;font-family:'Fredoka';font-weight:600;
+    font-size:calc(var(--s)*.3);color:rgba(42,47,69,.82)}
+
+/* shell ring (progress toward full octet) */
+.shell{position:absolute;inset:-16%;z-index:1}
+.shell circle{fill:none;stroke-width:3}
+.shell .track{stroke:rgba(120,132,180,.28);stroke-dasharray:3 5}
+.shell .prog{stroke:url(#shellgrad);stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+
+/* ---- atom cell (grid) ---- */
+.atom-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px;margin-top:22px}
+.cell{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;
+    background:rgba(255,255,255,.55);border-radius:18px;padding:16px 8px 14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5), var(--shadow-card)}
+.cell .chip{display:flex;flex-direction:column;align-items:center;line-height:1}
+.cell .chip b{font-family:'Fredoka';font-weight:600;font-size:22px;color:var(--ink)}
+.cell .chip span{font-size:11px;color:var(--ink-faint);margin-top:2px;font-weight:600}
+.cell .atomwrap{height:96px;display:grid;place-items:center;margin:2px 0}
+.cell .counts{font-size:11.5px;color:var(--ink-soft);font-weight:600;line-height:1.5}
+.cell .counts b{color:var(--ink)}
+.mini-legend{display:flex;justify-content:center;flex-wrap:wrap;gap:18px;margin-top:18px;font-size:12.5px;color:var(--ink-soft)}
+.mini-legend span{display:inline-flex;align-items:center;gap:7px}
+.swatch{width:20px;height:20px;border-radius:50%;position:relative}
+.sw-open{box-shadow:inset 0 1px 3px rgba(0,0,0,.4),0 0 0 2px rgba(255,255,255,.6),0 0 5px 1px rgba(120,150,255,.7);background:radial-gradient(circle at 50% 38%,rgba(0,0,0,.3),rgba(0,0,0,.05) 72%)}
+.sw-lone{background:rgba(255,255,255,.7);box-shadow:inset 0 1px 2px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;gap:3px}
+.sw-lone i{width:5px;height:5px;border-radius:50%;background:#3a3f57}
+.sw-fill{background:radial-gradient(circle at 38% 32%,#fff,#cfd6ea 60%,#9aa3bd);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+
+/* ---- anatomy ---- */
+.anatomy{display:grid;grid-template-columns:1.1fr 0.9fr;gap:clamp(20px,4vw,46px);align-items:center;margin-top:20px}
+.anatomy-list{display:flex;flex-direction:column;gap:12px}
+.an-row{display:flex;align-items:flex-start;gap:13px}
+.an-row .dot{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;color:#fff;
+    box-shadow:0 8px 14px -8px rgba(40,52,96,.5)}
+.an-row .dot svg{width:17px;height:17px}
+.an-row b{font-size:14.5px;display:block}
+.an-row span{font-size:12.5px;color:var(--ink-soft)}
+.anatomy-stage{display:grid;place-items:center;min-height:280px;position:relative}
+.legend{background:rgba(255,255,255,.6);border-radius:18px;padding:16px 18px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);margin-top:18px}
+.legend h4{font-family:'Fredoka';font-weight:600;font-size:14px;margin-bottom:10px}
+.legend .lg-row{display:flex;align-items:center;gap:11px;margin:8px 0;font-size:12.5px;color:var(--ink-soft)}
+.legend .lg-row b{color:var(--ink);font-weight:700}
+
+/* ---- the rule callout ---- */
+.rule{background:linear-gradient(150deg,rgba(238,234,255,.85),rgba(228,236,255,.7));border-radius:20px;padding:18px 20px;margin-top:6px;
+    box-shadow:inset 0 0 0 1px rgba(138,103,239,.16)}
+.rule h4{font-family:'Fredoka';font-weight:600;font-size:15px;color:var(--purple-d);margin-bottom:8px}
+.rule code{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:13.5px;background:rgba(255,255,255,.7);padding:3px 8px;border-radius:7px;color:var(--ink)}
+.rule p{font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin-top:8px}
+
+/* ---- mood rows ---- */
+.mood-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:20px}
+.mood-row.specials{grid-template-columns:repeat(4,1fr);margin-top:14px}
+.mood-cell{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
+    background:rgba(255,255,255,.5);border-radius:16px;padding:16px 6px 12px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.mood-cell .atomwrap{height:80px;display:grid;place-items:center}
+.mood-cell b{font-size:13px;color:var(--ink)}
+.mood-cell span{font-size:11.5px;font-weight:700}
+.m-over{color:#f4664f}.m-anx{color:#f0883e}.m-want{color:#e0a92e}.m-cur{color:#3aa0d8}.m-good{color:#5cc06d}
+.m-rad{color:#f4664f}.m-noble{color:#8a67ef}.m-cat{color:#3a85ef}.m-an{color:#e0789a}
+
+/* ---- interactive ---- */
+.try{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,4vw,44px);align-items:center;margin-top:18px}
+.try-stage{display:grid;place-items:center;min-height:260px;position:relative}
+.try-copy h3{font-family:'Fredoka';font-weight:600;font-size:20px;margin-bottom:6px}
+.try-copy p{font-size:14px;color:var(--ink-soft);line-height:1.6}
+.try-status{margin-top:14px;display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:14px;
+    padding:10px 16px;border-radius:999px;background:#fff;box-shadow:var(--shadow-card)}
+.try-status .pip{width:10px;height:10px;border-radius:50%;background:#f4664f}
+.try-actions{display:flex;gap:10px;margin-top:16px}
+.try-btn{border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px;padding:11px 16px;border-radius:12px;
+    background:#fff;color:var(--ink);box-shadow:inset 0 0 0 1px var(--line);transition:transform .12s}
+.try-btn:active{transform:scale(.95)}
+.try-btn.solid{background:linear-gradient(100deg,#ff8d79,#a98cf6);color:#fff;box-shadow:none}
+.gatom .notch.bond.clickable{cursor:pointer}
+.gatom .notch.bond.clickable:hover{--glow:rgba(140,120,255,.95)}
+.pop{animation:pop .4s cubic-bezier(.2,1.5,.4,1)}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.4)}100%{transform:translate(-50%,-50%) scale(1)}}
+
+/* ---- bonds ---- */
+.bond-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:20px}
+.bond-cell{background:rgba(255,255,255,.5);border-radius:18px;padding:20px 14px;text-align:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.bond-cell h4{font-family:'Fredoka';font-weight:600;font-size:16px}
+.bond-cell .desc{font-size:12px;color:var(--ink-faint);margin-bottom:14px}
+.bond-scene{display:flex;align-items:center;justify-content:center;height:90px}
+.stick{height:9px;border-radius:6px;background:linear-gradient(180deg,#fff,#eef0f8 45%,#c7cee0);box-shadow:0 1px 2px rgba(31,42,68,.2), inset 0 1px 1px rgba(255,255,255,.7)}
+.stick.s1{width:30px}.stick.s2{width:20px}.stick.s3{width:14px}
+.stack{display:flex;flex-direction:column;justify-content:center;gap:4px}
+.bond-cell .click{margin-top:12px;font-size:12px;color:var(--purple-d);font-weight:700;font-style:italic}
+
+/* ---- shape ---- */
+.shape-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
+.shape-cell{background:rgba(255,255,255,.5);border-radius:18px;padding:22px 16px;text-align:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.shape-cell h4{font-family:'Fredoka';font-weight:600;font-size:17px}
+.shape-cell .sub{font-size:12.5px;color:var(--ink-faint);margin-bottom:10px}
+.shape-scene{position:relative;height:160px;margin:6px 0}
+.shape-cell .note{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-top:6px}
+.angle{font-family:'Fredoka';font-weight:600;color:var(--blue-d);font-size:15px}
+
+/* ---- why ---- */
+.why-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:20px}
+.why{display:flex;gap:13px;background:rgba(255,255,255,.5);border-radius:16px;padding:16px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.why .ic{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;color:#fff;box-shadow:0 8px 14px -8px rgba(40,52,96,.5)}
+.why .ic svg{width:20px;height:20px}
+.why b{font-size:14px;display:block;margin-bottom:3px}
+.why p{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+
+/* ---- principles ---- */
+.principles{display:grid;grid-template-columns:auto repeat(4,1fr);gap:18px;align-items:center;margin-top:24px;
+    background:linear-gradient(150deg,rgba(189,164,251,.5),rgba(139,192,255,.4));border-radius:24px;padding:24px clamp(18px,3vw,32px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+.principles .lead{font-family:'Fredoka';font-weight:600;font-size:20px;color:var(--purple-d);line-height:1.1}
+.principle b{display:block;font-size:14px;margin-bottom:3px}
+.principle p{font-size:12px;color:var(--ink-soft);line-height:1.45}
+
+.foot{text-align:center;padding:50px 20px 0;color:var(--ink-faint);font-size:13px}
+.foot a{color:var(--purple-d);text-decoration:none;font-weight:700}
+
+@media(max-width:860px){
+    .anatomy,.try{grid-template-columns:1fr}
+    .principles{grid-template-columns:1fr 1fr}
+    .principles .lead{grid-column:1/-1}
+    .nav-links a:not(.primary){display:none}
+}
+@media(max-width:620px){
+    .mood-row{grid-template-columns:repeat(3,1fr)}
+    .mood-row.specials{grid-template-columns:repeat(2,1fr)}
+    .bond-grid,.shape-grid{grid-template-columns:1fr}
+    .principles{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="flask" viewBox="0 0 48 48">
+    <path d="M19 7v9l-8 13a4 4 0 0 0 3.4 6.1h6.6" fill="none" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M11 30.5h11l-2.5-4h-6z" fill="#f7a6a0"/><path d="M29 7v9l8 13a4 4 0 0 1-3.4 6.1H27" fill="none" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M37 30.5H26l2.5-4h6z" fill="#9bd9a0"/>
+    <line x1="16.5" y1="7" x2="21.5" y2="7" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round"/><line x1="26.5" y1="7" x2="31.5" y2="7" stroke="#1f294a" stroke-width="2.6" stroke-linecap="round"/>
+  </symbol>
+  <linearGradient id="shellgrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a98cf6"/><stop offset="1" stop-color="#62a8ff"/></linearGradient>
+</defs></svg>
+
+<div class="bg" aria-hidden="true">
+    <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span><span class="blob b4"></span>
+    <span class="bub" style="width:90px;height:90px;left:5%;top:24%"></span>
+    <span class="bub" style="width:54px;height:54px;right:8%;top:30%"></span>
+    <span class="bub" style="width:34px;height:34px;left:14%;bottom:18%"></span>
+    <span class="bub" style="width:64px;height:64px;right:14%;bottom:12%"></span>
+</div>
+
+<nav class="nav">
+    <a class="brand" href="index.html"><span class="tile"><svg><use href="#flask"/></svg></span><b>MoleMates</b></a>
+    <div class="nav-links">
+        <a href="https://seanwirkus.com/molemates.html">Concept</a>
+        <a href="index.html" class="primary">Open the app ↗</a>
+    </div>
+</nav>
+
+<div class="wrap">
+    <header class="head">
+        <div class="logo"><span class="tile"><svg><use href="#flask"/></svg></span><b>MoleMates</b></div>
+        <h1>Atom <span class="g">Style Guide</span></h1>
+        <p>Scientifically accurate, emotionally intuitive atoms for learning chemistry. Every atom is a little creature whose <b>mood shows how close it is to a full shell</b> — the chemistry is the design.</p>
+    </header>
+
+    <!-- 1 — CORE ANATOMY -->
+    <section class="section">
+        <div class="sec-head"><span class="sec-num">1</span><h2>Core Anatomy</h2></div>
+        <p class="sec-sub">Six parts. Each one carries real meaning.</p>
+        <div class="anatomy">
+            <div class="anatomy-list" id="anatomyList"></div>
+            <div>
+                <div class="anatomy-stage" id="anatomyStage"></div>
+                <div class="legend">
+                    <h4>Legend</h4>
+                    <div class="lg-row"><span class="swatch sw-open"></span><span><b>Open site</b> — available for bonding (hungry)</span></div>
+                    <div class="lg-row"><span class="swatch sw-lone"><i></i><i></i></span><span><b>Lone pair</b> — two electrons it keeps close</span></div>
+                    <div class="lg-row"><span class="swatch sw-fill"></span><span><b>Bonded</b> — a site that's been filled</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 2 — THE RULE + COMMON ATOMS -->
+    <section class="section">
+        <div class="sec-head"><span class="sec-num">2</span><h2>Common Atoms</h2></div>
+        <p class="sec-sub">Notches aren't memorized — they're <i>derived</i>. Same rule for every atom.</p>
+        <div class="rule">
+            <h4>The notch rule</h4>
+            <code>bonding sites = 8 − outer electrons</code>&nbsp;&nbsp;
+            <code>lone pairs = (outer electrons − sites) ÷ 2</code>
+            <p>Sites + lone pairs always equals <b>4</b> — the four tetrahedral directions. That's not a coincidence: the same four notches predict the molecule's shape later. (Hydrogen wants a duet → 1 site. Boron is happy with 6 → 3 sites, still a little hungry. Noble gases are already full → 0 sites, 4 lone pairs.)</p>
+        </div>
+        <div class="atom-grid" id="atomGrid"></div>
+        <div class="mini-legend">
+            <span><span class="swatch sw-open" style="width:16px;height:16px"></span> Open (available to bond)</span>
+            <span><span class="swatch sw-lone" style="width:16px;height:16px"><i></i><i></i></span> Lone pair (two electrons)</span>
+            <span><span class="swatch sw-fill" style="width:16px;height:16px"></span> Bonded (site filled)</span>
+        </div>
+    </section>
+
+    <!-- 3 — MOOD RULES -->
+    <section class="section">
+        <div class="sec-head"><span class="sec-num">3</span><h2>Mood Rules</h2></div>
+        <p class="sec-sub">Same atom, different needs. Mood is set by the number of <b>open</b> bonding sites.</p>
+        <div class="mood-row" id="moodScale"></div>
+        <div class="mood-row specials" id="moodSpecials"></div>
+    </section>
+
+    <!-- 4 — TRY IT -->
+    <section class="section">
+        <div class="sec-head"><span class="sec-num">4</span><h2>Try it — fill carbon's shell</h2></div>
+        <p class="sec-sub">Click the glowing sockets. Watch the mood and the shell ring change as carbon reaches a full octet.</p>
+        <div class="try">
+            <div class="try-stage" id="tryStage"></div>
+            <div class="try-copy">
+                <h3>Bonding is just reaching “content.”</h3>
+                <p>A lone carbon has four open sites — it's <b>overwhelmed</b>. Every bond fills one site and calms it down. At zero open sites the shell is full and carbon is finally <b>content</b>. That feeling <i>is</i> the octet rule.</p>
+                <div class="try-status" id="tryStatus"><span class="pip"></span><span>4 open · overwhelmed</span></div>
+                <div class="try-actions">
+                    <button class="try-btn solid" id="fillOne">Add a bond</button>
+                    <button class="try-btn" id="resetTry">Reset</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 5 — BOND LANGUAGE -->
+    <section class="section">
+        <div class="sec-head"><span class="sec-num">5</span><h2>Bond Language</h2></div>
+        <p class="sec-sub">A bond is two atoms holding hands to share what they're each missing. Stronger bonds sit tighter and shorter.</p>
+        <div class="bond-grid" id="bondGrid"></div>
+    </section>
+
+    <!-- 6 — SHAPE INTUITION -->
+    <section class="section">
+        <div class="sec-head"><span class="sec-num">6</span><h2>Shape Intuition</h2></div>
+        <p class="sec-sub">Lone pairs are puffier than bonds, so they take up more room and push the bonded atoms closer. Shape falls straight out of how the four notches are used.</p>
+        <div class="shape-grid" id="shapeGrid"></div>
+    </section>
+
+    <!-- 7 — WHY IT HELPS -->
+    <section class="section">
+        <div class="sec-head"><span class="sec-num">7</span><h2>Why it helps you learn</h2></div>
+        <div class="why-grid">
+            <div class="why"><span class="ic" style="background:linear-gradient(150deg,#ffa48f,#f4664f)">❤</span><div><b>Mood reveals valence</b><p>How many bonds an atom wants is written on its face — before any words.</p></div></div>
+            <div class="why"><span class="ic" style="background:linear-gradient(150deg,#8bc0ff,#3a85ef)">◎</span><div><b>Notches reveal capacity</b><p>Four positions show exactly where — and how many — bonds can form.</p></div></div>
+            <div class="why"><span class="ic" style="background:linear-gradient(150deg,#bda4fb,#8a67ef)">∷</span><div><b>Lone pairs take space</b><p>You can see and feel lone pairs changing shape and reactivity.</p></div></div>
+            <div class="why"><span class="ic" style="background:linear-gradient(150deg,#9ae7d8,#3eb8a4)">✓</span><div><b>Full shells feel complete</b><p>Satisfaction comes from a complete shell — that's the whole game.</p></div></div>
+            <div class="why"><span class="ic" style="background:linear-gradient(150deg,#ffd98a,#f0a32e)">≡</span><div><b>Bond strength is felt</b><p>Single, double, triple bonds look and feel different — short means strong.</p></div></div>
+            <div class="why"><span class="ic" style="background:linear-gradient(150deg,#a3e3ad,#5cc06d)">★</span><div><b>One rule, everywhere</b><p>The same notch rule works for every atom, so confidence transfers.</p></div></div>
+        </div>
+    </section>
+
+    <!-- PRINCIPLES -->
+    <div class="principles">
+        <div class="lead">Design<br>principles</div>
+        <div class="principle"><b>Scientifically accurate</b><p>Built on real electron counts and CPK colors — it transfers to real chemistry.</p></div>
+        <div class="principle"><b>Emotionally intuitive</b><p>Faces and moods make invisible ideas visible and memorable.</p></div>
+        <div class="principle"><b>Consistent &amp; predictable</b><p>The same rules everywhere build confidence.</p></div>
+        <div class="principle"><b>Accuracy first, cute second</b><p>Decoration never hides the chemistry — it reveals it.</p></div>
+    </div>
+
+    <div class="foot">MoleMates design system · <a href="https://seanwirkus.com/molemates.html">← Concept</a> &nbsp;·&nbsp; <a href="index.html">Open the app →</a></div>
+</div>
+
+<script>
+/* ============================================================================
+   CPK colors (warmed) → glossy gradient triples [highlight, mid, shadow]
+   ============================================================================ */
+const CPK = {
+    H:['#ffffff','#eef1f8','#c2cadf'],
+    B:['#ffd2dd','#f7a6bb','#e0789a'],
+    C:['#8a8f9c','#454a55','#20232b'],
+    N:['#aed2ff','#5ea7ff','#2f6fd6'],
+    O:['#ffb3a2','#f47b64','#cf4a36'],
+    F:['#c6efc0','#8ed79a','#4fae5f'],
+    Cl:['#bfe9a8','#7fce6f','#4aa83e'],
+    S:['#fff0b0','#ffd95e','#e0b02e'],
+    P:['#ffd1a8','#ff9d5c','#e07327'],
+    Ne:['#ddd0ff','#bba9f2','#8f7ad6'],
+    Ar:['#cbe7f4','#a8d6ec','#79b6d6'],
+    gray:['#aeb6cf','#7c langston','#5b6488'] // placeholder, replaced below
+};
+CPK.gray=['#c3cadd','#9aa3bd','#6f7894'];
+
+/* ============================================================================
+   ELEMENTS — store outer electrons; sites/lone pairs are DERIVED by rule()
+   ============================================================================ */
+const ELEMENTS = [
+    { sym:'H',  name:'Hydrogen',   cpk:'H',  sites:1, lone:0, note:'duet' },
+    { sym:'B',  name:'Boron',      cpk:'B',  sites:3, lone:0, deficient:true },
+    { sym:'C',  name:'Carbon',     cpk:'C',  outer:4 },
+    { sym:'N',  name:'Nitrogen',   cpk:'N',  outer:5 },
+    { sym:'O',  name:'Oxygen',     cpk:'O',  outer:6 },
+    { sym:'F',  name:'Fluorine',   cpk:'F',  outer:7 },
+    { sym:'Cl', name:'Chlorine',   cpk:'Cl', outer:7 },
+    { sym:'S',  name:'Sulfur',     cpk:'S',  outer:6 },
+    { sym:'P',  name:'Phosphorus', cpk:'P',  outer:5 },
+    { sym:'Ne', name:'Neon',       cpk:'Ne', noble:true },
+    { sym:'Ar', name:'Argon',      cpk:'Ar', noble:true },
+];
+
+function rule(el){
+    if (el.noble) return { sites:0, lone:4 };
+    if (el.sites != null) return { sites:el.sites, lone:el.lone };
+    const sites = 8 - el.outer;
+    const lone  = (el.outer - sites) / 2;
+    return { sites, lone };
+}
+
+/* ============================================================================
+   FACES — expression is set by mood (rules, not decoration)
+   ============================================================================ */
+const FACES = {
+    content:`<circle class="ey" cx="39" cy="48" r="4.5"/><circle class="ey" cx="61" cy="48" r="4.5"/><path class="mo" d="M40 59 Q50 69 60 59"/><ellipse class="ck" cx="28" cy="58" rx="5" ry="3"/><ellipse class="ck" cx="72" cy="58" rx="5" ry="3"/>`,
+    curious:`<circle class="ey" cx="39" cy="48" r="4.6"/><circle class="ey" cx="61" cy="48" r="4.6"/><circle class="hl" cx="40.6" cy="46.4" r="1.5"/><circle class="hl" cx="62.6" cy="46.4" r="1.5"/><path class="mo" d="M44 60 Q50 65 56 60"/>`,
+    wanting:`<circle class="ey" cx="39" cy="49" r="4.4"/><circle class="ey" cx="61" cy="49" r="4.4"/><path class="mo" d="M43 63 Q50 59 57 63"/>`,
+    anxious:`<path class="br" d="M31 40 L43 44"/><path class="br" d="M69 40 L57 44"/><circle class="ey" cx="39" cy="50" r="4"/><circle class="ey" cx="61" cy="50" r="4"/><path class="mo" d="M43 64 Q50 60 57 64"/>`,
+    overwhelmed:`<path class="br" d="M31 39 L43 36"/><path class="br" d="M69 39 L57 36"/><circle class="ey" cx="38" cy="50" r="6"/><circle class="ey" cx="62" cy="50" r="6"/><circle class="hl" cx="40" cy="48" r="1.8"/><circle class="hl" cx="64" cy="48" r="1.8"/><ellipse class="mo fill" cx="50" cy="64" rx="4.6" ry="5.6"/>`,
+    blissful:`<path class="br2" d="M33 48 Q39 42 45 48"/><path class="br2" d="M55 48 Q61 42 67 48"/><path class="mo" d="M42 59 Q50 65 58 59"/><path class="spk" d="M77 28 l1.6 4.4 4.4 1.6 -4.4 1.6 -1.6 4.4 -1.6 -4.4 -4.4 -1.6 4.4 -1.6z"/>`,
+    radical:`<circle class="ey" cx="39" cy="49" r="4.2"/><circle class="ey" cx="61" cy="49" r="4.2"/><path class="mo" d="M42 62 q4 -4 8 0 t8 0"/><path class="swt" d="M71 39 q-4 6 0 9 a4.6 4.6 0 0 0 0 -9z"/>`,
+    cation:`<path class="br2" d="M34 47 Q39 51 44 47"/><path class="br2" d="M56 47 Q61 51 66 47"/><path class="mo" d="M43 60 Q50 64 57 60"/>`,
+    anion:`<path class="lid" d="M34 47 L44 47"/><path class="lid" d="M56 47 L66 47"/><circle class="ey" cx="39" cy="49.5" r="3.1"/><circle class="ey" cx="61" cy="49.5" r="3.1"/><path class="mo" d="M42 60 Q51 65 60 58"/>`,
+};
+const MOOD_SCALE = ['content','curious','wanting','anxious','overwhelmed'];
+function moodFor(open, state){
+    if (state) return state;                 // noble/radical/cation/anion
+    return MOOD_SCALE[Math.min(open, 4)];
+}
+function faceSVG(mood){
+    return `<svg class="face" viewBox="0 0 100 100">${FACES[mood] || FACES.content}</svg>`;
+}
+
+/* ============================================================================
+   ATOM RENDERER
+   notches: array of {pos, type}  type ∈ bond | filled | lone | empty | radical
+   ============================================================================ */
+const SLOTS = ['bottom','right','left','top'];
+
+function notchesFor(sites, lone, deficient){
+    const out = [];
+    for (let i=0;i<sites;i++) out.push({ pos:SLOTS[i], type:'bond' });
+    for (let i=0;i<lone;i++) out.push({ pos:SLOTS[sites+i], type:'lone' });
+    if (deficient && sites < 4) out.push({ pos:SLOTS[sites], type:'empty' });
+    return out;
+}
+
+function makeAtom(opts){
+    const { cpk='gray', size=96, notches=[], mood='content', badge, label, ring } = opts;
+    const c = CPK[cpk] || CPK.gray;
+    const el = document.createElement('div');
+    el.className = 'gatom';
+    el.style.cssText = `--s:${size}px;--c1:${c[0]};--c2:${c[1]};--c3:${c[2]}`;
+    if (cpk==='C') el.style.setProperty('--lp','#cdd3e6');   // light dots on dark carbon (n/a but safe)
+
+    let html = '';
+    if (ring != null){
+        const r=46, circ=2*Math.PI*r, off=circ*(1-ring);
+        html += `<svg class="shell" viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="${r}"/><circle class="prog" cx="50" cy="50" r="${r}" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 50 50)"/></svg>`;
+    }
+    html += faceSVG(mood);
+    if (label) html += `<span class="sym">${label}</span>`;
+    notches.forEach(n=>{
+        if (n.type==='lone')      html += `<span class="notch lone pos-${n.pos}"><i></i><i></i></span>`;
+        else if (n.type==='radical') html += `<span class="notch radical pos-${n.pos}"><i></i></span>`;
+        else                      html += `<span class="notch ${n.type} pos-${n.pos}"></span>`;
+    });
+    if (badge) html += `<span class="badge ${badge==='+'?'plus':'minus'}">${badge}</span>`;
+    el.innerHTML = html;
+    return el;
+}
+
+function renderElement(el, size){
+    const { sites, lone } = rule(el);
+    const open = el.noble ? 0 : sites;
+    const state = el.noble ? 'blissful' : null;
+    return makeAtom({
+        cpk: el.cpk, size,
+        notches: notchesFor(sites, lone, el.deficient),
+        mood: moodFor(open, state),
+    });
+}
+
+/* ============================================================================
+   BUILD: anatomy
+   ============================================================================ */
+(function anatomy(){
+    const stage = document.getElementById('anatomyStage');
+    // a nitrogen-style atom shows everything at once: open sites + a lone pair + ring
+    const atom = makeAtom({
+        cpk:'N', size:180,
+        notches:[ {pos:'bottom',type:'bond'}, {pos:'right',type:'bond'}, {pos:'left',type:'bond'}, {pos:'top',type:'lone'} ],
+        mood:'anxious', ring:0.55, badge:'+'
+    });
+    stage.appendChild(atom);
+
+    const parts = [
+        ['Open bonding site','Ready to bond — glows when hungry','linear-gradient(150deg,#8bc0ff,#3a85ef)','<circle cx="12" cy="12" r="7" fill="none" stroke="#fff" stroke-width="2"/>'],
+        ['Lone pair','Two electrons nestled in a notch','linear-gradient(150deg,#bda4fb,#8a67ef)','<circle cx="8" cy="12" r="2.4" fill="#fff"/><circle cx="16" cy="12" r="2.4" fill="#fff"/>'],
+        ['Body (CPK color)','The element, in its real color','linear-gradient(150deg,#9ae7d8,#3eb8a4)','<circle cx="12" cy="12" r="7" fill="#fff"/>'],
+        ['Face','Shows mood &amp; shell completeness','linear-gradient(150deg,#ffa48f,#f4664f)','<circle cx="9" cy="10" r="1.6" fill="#fff"/><circle cx="15" cy="10" r="1.6" fill="#fff"/><path d="M9 14 Q12 17 15 14" stroke="#fff" stroke-width="1.8" fill="none" stroke-linecap="round"/>'],
+        ['Charge badge','A + or − when the atom is an ion','linear-gradient(150deg,#ffd98a,#f0a32e)','<path d="M12 7v10M7 12h10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>'],
+        ['Shell ring','Fills like a progress bar to a full octet','linear-gradient(150deg,#a3e3ad,#5cc06d)','<circle cx="12" cy="12" r="7" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 3"/>'],
+    ];
+    const list = document.getElementById('anatomyList');
+    parts.forEach(p=>{
+        const row=document.createElement('div'); row.className='an-row';
+        row.innerHTML = `<span class="dot" style="background:${p[2]}"><svg viewBox="0 0 24 24">${p[3]}</svg></span><div><b>${p[0]}</b><span>${p[1]}</span></div>`;
+        list.appendChild(row);
+    });
+})();
+
+/* ============================================================================
+   BUILD: common atoms grid
+   ============================================================================ */
+(function grid(){
+    const g = document.getElementById('atomGrid');
+    ELEMENTS.forEach(el=>{
+        const { sites, lone } = rule(el);
+        const cell = document.createElement('div'); cell.className='cell';
+        cell.innerHTML = `<div class="chip"><b>${el.sym}</b><span>${el.name}</span></div><div class="atomwrap"></div>
+            <div class="counts"><b>${sites}</b> bonding ${sites===1?'site':'sites'}<br><b>${lone}</b> lone ${lone===1?'pair':'pairs'}</div>`;
+        cell.querySelector('.atomwrap').appendChild(renderElement(el, 76));
+        g.appendChild(cell);
+    });
+})();
+
+/* ============================================================================
+   BUILD: mood rules
+   ============================================================================ */
+(function moods(){
+    const scale = document.getElementById('moodScale');
+    const labels = [
+        ['4 open','Overwhelmed','m-over'],
+        ['3 open','Anxious','m-anx'],
+        ['2 open','Wanting','m-want'],
+        ['1 open','Curious','m-cur'],
+        ['0 open','Content','m-good'],
+    ];
+    // a generic gray atom with N open sockets and (4−N) filled
+    for (let open=4; open>=0; open--){
+        const notches=[];
+        for (let i=0;i<open;i++) notches.push({pos:SLOTS[i],type:'bond'});
+        for (let i=open;i<4;i++) notches.push({pos:SLOTS[i],type:'filled'});
+        const cell=document.createElement('div'); cell.className='mood-cell';
+        const L = labels[4-open];
+        cell.innerHTML=`<div class="atomwrap"></div><b>${L[0]}</b><span class="${L[2]}">${L[1]}</span>`;
+        cell.querySelector('.atomwrap').appendChild(makeAtom({cpk:'C',size:64,notches,mood:moodFor(open)}));
+        scale.appendChild(cell);
+    }
+
+    const sp = document.getElementById('moodSpecials');
+    const specials = [
+        { title:'Radical', sub:'One unpaired electron', cls:'m-rad',
+          atom:()=>makeAtom({cpk:'C',size:64,mood:'radical',notches:[{pos:'bottom',type:'filled'},{pos:'right',type:'filled'},{pos:'left',type:'filled'},{pos:'top',type:'radical'}]}) },
+        { title:'Noble gas', sub:'Full shell — at peace', cls:'m-noble',
+          atom:()=>makeAtom({cpk:'Ne',size:64,mood:'blissful',notches:notchesFor(0,4)}) },
+        { title:'Cation', sub:'Lost an electron, relieved', cls:'m-cat',
+          atom:()=>makeAtom({cpk:'N',size:64,mood:'cation',badge:'+',notches:notchesFor(0,4)}) },
+        { title:'Anion', sub:'Gained an electron, smug', cls:'m-an',
+          atom:()=>makeAtom({cpk:'O',size:64,mood:'anion',badge:'−',notches:notchesFor(0,4)}) },
+    ];
+    specials.forEach(s=>{
+        const cell=document.createElement('div'); cell.className='mood-cell';
+        cell.innerHTML=`<div class="atomwrap"></div><b>${s.title}</b><span class="${s.cls}">${s.sub}</span>`;
+        cell.querySelector('.atomwrap').appendChild(s.atom());
+        sp.appendChild(cell);
+    });
+})();
+
+/* ============================================================================
+   BUILD: interactive "fill carbon's shell"
+   ============================================================================ */
+(function tryIt(){
+    const stage = document.getElementById('tryStage');
+    const status = document.getElementById('tryStatus');
+    let filled = 0;
+    const STATES = [
+        ['overwhelmed','#f4664f','overwhelmed'],
+        ['anxious','#f0883e','anxious'],
+        ['wanting','#e0a92e','wanting'],
+        ['curious','#3aa0d8','curious'],
+        ['content','#5cc06d','content · full octet 🎉'],
+    ];
+    function draw(){
+        stage.innerHTML='';
+        const open = 4 - filled;
+        const notches=[];
+        for (let i=0;i<filled;i++) notches.push({pos:SLOTS[i],type:'filled'});
+        for (let i=filled;i<4;i++) notches.push({pos:SLOTS[i],type:'bond'});
+        const atom = makeAtom({ cpk:'C', size:170, mood:moodFor(open), notches, ring:filled/4 });
+        // make open sockets clickable
+        atom.querySelectorAll('.notch.bond').forEach(n=>{
+            n.classList.add('clickable');
+            n.addEventListener('click',()=>{ if(filled<4){filled++; if(navigator.vibrate)navigator.vibrate(8); draw();} });
+        });
+        // animate the most-recently filled
+        const fills = atom.querySelectorAll('.notch.filled');
+        if (fills.length) fills[fills.length-1].classList.add('pop');
+        stage.appendChild(atom);
+        const S = STATES[filled];
+        status.innerHTML = `<span class="pip" style="background:${S[1]}"></span><span>${open} open · ${S[2]}</span>`;
+    }
+    document.getElementById('fillOne').addEventListener('click',()=>{ if(filled<4){filled++; if(navigator.vibrate)navigator.vibrate(8); draw();} });
+    document.getElementById('resetTry').addEventListener('click',()=>{ filled=0; draw(); });
+    draw();
+})();
+
+/* ============================================================================
+   BUILD: bond language
+   ============================================================================ */
+(function bonds(){
+    const g = document.getElementById('bondGrid');
+    const rows = [
+        ['Single bond','One connection',1,'C','H','click!'],
+        ['Double bond','Closer, stronger',2,'O','O','click! ❤'],
+        ['Triple bond','Shortest, tightest',3,'N','N','click! ↑'],
+    ];
+    rows.forEach(r=>{
+        const cell=document.createElement('div'); cell.className='bond-cell';
+        cell.innerHTML=`<h4>${r[0]}</h4><div class="desc">${r[1]}</div><div class="bond-scene"></div><div class="click">${r[5]}</div>`;
+        const scene=cell.querySelector('.bond-scene');
+        const a1=makeAtom({cpk:r[3],size:56,mood:'curious',notches:[{pos:'right',type:'filled'}]});
+        const a2=makeAtom({cpk:r[4],size:56,mood:'content',notches:[{pos:'left',type:'filled'}]});
+        const sticks=document.createElement('div'); sticks.className='stack';
+        for(let i=0;i<r[2];i++){const s=document.createElement('div');s.className='stick s'+r[2];sticks.appendChild(s);}
+        scene.append(a1,sticks,a2);
+        g.appendChild(cell);
+    });
+})();
+
+/* ============================================================================
+   BUILD: shape intuition (water + ammonia)
+   ============================================================================ */
+(function shapes(){
+    const g = document.getElementById('shapeGrid');
+    // Water — O with 2 lone pairs (top) pushing 2 H's closer, bent 104.5°
+    const water = document.createElement('div'); water.className='shape-cell';
+    water.innerHTML=`<h4>Water · H₂O</h4><div class="sub">Bent · <span class="angle">104.5°</span></div><div class="shape-scene" id="waterScene"></div><div class="note">Oxygen's two lone pairs sit on top and shove the hydrogens down — so water bends.</div>`;
+    g.appendChild(water);
+    const ws = water.querySelector('#waterScene');
+    const O = makeAtom({cpk:'O',size:84,mood:'content',notches:[{pos:'top',type:'lone'},{pos:'left',type:'lone'},{pos:'bottom',type:'filled'},{pos:'right',type:'filled'}]});
+    O.style.cssText+=';position:absolute;left:50%;top:34%;transform:translate(-50%,-50%)';
+    const wh1=makeAtom({cpk:'H',size:46,mood:'content',notches:[{pos:'top',type:'filled'}],label:'H'});
+    const wh2=makeAtom({cpk:'H',size:46,mood:'content',notches:[{pos:'top',type:'filled'}],label:'H'});
+    wh1.style.cssText+=';position:absolute;left:24%;top:74%;transform:translate(-50%,-50%)';
+    wh2.style.cssText+=';position:absolute;left:76%;top:74%;transform:translate(-50%,-50%)';
+    ws.append(O,wh1,wh2);
+
+    // Ammonia — N with 1 lone pair (top) over 3 H's, pyramidal 107°
+    const amm = document.createElement('div'); amm.className='shape-cell';
+    amm.innerHTML=`<h4>Ammonia · NH₃</h4><div class="sub">Pyramidal · <span class="angle">107°</span></div><div class="shape-scene" id="ammScene"></div><div class="note">Nitrogen's single lone pair caps the top and presses the three hydrogens into a pyramid.</div>`;
+    g.appendChild(amm);
+    const as = amm.querySelector('#ammScene');
+    const N = makeAtom({cpk:'N',size:84,mood:'content',notches:[{pos:'top',type:'lone'},{pos:'bottom',type:'filled'},{pos:'left',type:'filled'},{pos:'right',type:'filled'}]});
+    N.style.cssText+=';position:absolute;left:50%;top:38%;transform:translate(-50%,-50%)';
+    const positions=[['22%','78%'],['50%','86%'],['78%','78%']];
+    positions.forEach(p=>{const h=makeAtom({cpk:'H',size:42,mood:'content',notches:[{pos:'top',type:'filled'}],label:'H'});h.style.cssText+=`;position:absolute;left:${p[0]};top:${p[1]};transform:translate(-50%,-50%)`;as.appendChild(h);});
+    as.appendChild(N);
+})();
+</script>
+</body>
+</html>

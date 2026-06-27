@@ -12,6 +12,7 @@ that doubles as the clickable spec for the native **SwiftUI / iOS** build.
 - **App prototype:** open [`index.html`](index.html) in any browser, or visit the
   GitHub Pages build.
 - **Concept / landing page:** [seanwirkus.com/molemates.html](https://seanwirkus.com/molemates.html)
+- **Atom style guide:** [`style-guide.html`](style-guide.html) — the design system: how every atom looks, derived from real electron counts.
 
 No build step, no dependencies — just open the file.
 
